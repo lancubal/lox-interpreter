@@ -1,0 +1,15 @@
+# Compiled class files
+*.class
+bin/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
+
+# Java Language Server
+.settings/
+
+# macOS
+.DS_Store
