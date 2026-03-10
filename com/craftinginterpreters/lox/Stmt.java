@@ -5,10 +5,12 @@ import java.util.List;
 abstract class Stmt {
  interface Visitor<R> {
  R visitBlockStmt(Block stmt);
+ R visitIfStmt(If stmt);
  R visitExpressionStmt(Expression stmt);
  R visitPrintStmt(Print stmt);
- R visitVarStmt(Var stmt);
  R visitVariableStmt(Variable stmt);
+ R visitVarStmt(Var stmt);
+ R visitWhileStmt(While stmt);
  }
  static class Block extends Stmt {
  Block(List<Stmt> statements) {
@@ -21,6 +23,22 @@ abstract class Stmt {
  }
 
  final List<Stmt> statements;
+ }
+ static class If extends Stmt {
+ If(Expr condition, Stmt thenBranch, Stmt elseBranch) {
+ this.condition = condition;
+ this.thenBranch = thenBranch;
+ this.elseBranch = elseBranch;
+ }
+
+ @Override
+ <R> R accept(Visitor<R> visitor) {
+ return visitor.visitIfStmt(this);
+ }
+
+ final Expr condition;
+ final Stmt thenBranch;
+ final Stmt elseBranch;
  }
  static class Expression extends Stmt {
  Expression(Expr expression) {
@@ -46,6 +64,18 @@ abstract class Stmt {
 
  final Expr expression;
  }
+ static class Variable extends Stmt {
+ Variable(Token name) {
+ this.name = name;
+ }
+
+ @Override
+ <R> R accept(Visitor<R> visitor) {
+ return visitor.visitVariableStmt(this);
+ }
+
+ final Token name;
+ }
  static class Var extends Stmt {
  Var(Token name, Expr initializer) {
  this.name = name;
@@ -60,17 +90,19 @@ abstract class Stmt {
  final Token name;
  final Expr initializer;
  }
- static class Variable extends Stmt {
- Variable(Token name) {
- this.name = name;
+ static class While extends Stmt {
+ While(Expr condition, Stmt body) {
+ this.condition = condition;
+ this.body = body;
  }
 
  @Override
  <R> R accept(Visitor<R> visitor) {
- return visitor.visitVariableStmt(this);
+ return visitor.visitWhileStmt(this);
  }
 
- final Token name;
+ final Expr condition;
+ final Stmt body;
  }
 
  abstract <R> R accept(Visitor<R> visitor);
