@@ -2,12 +2,15 @@ package com.craftinginterpreters.lox;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 class Interpreter implements Expr.Visitor<Object>,
         Stmt.Visitor<Void> {
 
     final Environment globals = new Environment();
     private Environment environment = globals;
+    private final Map<Expr, Integer> locals = new HashMap<>();
 
     Interpreter() {
         globals.define("clock", new LoxCallable() {
@@ -155,6 +158,10 @@ class Interpreter implements Expr.Visitor<Object>,
         stmt.accept(this);
     }
 
+    void resolve(Expr expr, int depth) {
+        locals.put(expr, depth);
+    }
+
     @Override
     public Void visitBlockStmt(Stmt.Block stmt) {
         executeBlock(stmt.statements, new Environment(environment));
@@ -237,13 +244,33 @@ class Interpreter implements Expr.Visitor<Object>,
     @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
-        environment.assign(expr.name, value);
+
+        Integer distance = locals.get(expr);
+        if (distance != null) {
+            environment.assignAt(distance, expr.name, value);
+        } else {
+            // Variable is global.
+            globals.assign(expr.name, value);
+        }
+
         return value;
     }
 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
+        return lookUpVariable(expr.name, expr);
+    }
+
+    private Object lookUpVariable(Token name, Expr expr) {
+        // Look up the resolved distance in the map
+        Integer distance = locals.get(expr);
+        if(distance != null) {
+            // Look up the variable in the environment at that distance
+            return environment.getAt(distance, name.lexeme);
+        } else {
+            // Not found. Assume it is global.
+            return globals.get(name);
+        }
     }
 
     // nil, false are "falsey". Everything else is "truthy".

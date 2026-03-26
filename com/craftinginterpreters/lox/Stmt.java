@@ -10,7 +10,6 @@ abstract class Stmt {
  R visitFunctionStmt(Function stmt);
  R visitPrintStmt(Print stmt);
  R visitReturnStmt(Return stmt);
- R visitVariableStmt(Variable stmt);
  R visitVarStmt(Var stmt);
  R visitWhileStmt(While stmt);
  }
@@ -95,18 +94,6 @@ abstract class Stmt {
 
  final Token keyword;
  final Expr value;
- }
- static class Variable extends Stmt {
- Variable(Token name) {
- this.name = name;
- }
-
- @Override
- <R> R accept(Visitor<R> visitor) {
- return visitor.visitVariableStmt(this);
- }
-
- final Token name;
  }
  static class Var extends Stmt {
  Var(Token name, Expr initializer) {

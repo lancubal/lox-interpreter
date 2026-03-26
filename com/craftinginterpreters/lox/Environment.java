@@ -20,6 +20,25 @@ class Environment {
         values.put(name, value);
     }
 
+    // Walk up the chain of enclosing environments to find the one at the given distance.
+    Environment ancestor(int distance) {
+        Environment environment = this;
+        for (int i = 0; i < distance; i++) {
+            environment = environment.enclosing;
+        }
+        return environment;
+    }
+
+    // Get a variable from the environment at the given distance.
+    Object getAt(int distance, String name) {
+        return ancestor(distance).values.get(name);
+    }
+
+    // Set a variable's value in the environment at the given distance.
+    void assignAt(int distance, Token name, Object value) {
+        ancestor(distance).values.put(name.lexeme, value);
+    }
+
     Object get(Token name) {
         if (values.containsKey(name.lexeme)) {
             return values.get(name.lexeme);
@@ -40,7 +59,7 @@ class Environment {
             return;
         }
 
-        // If the variable isn't in this environment, try the enclosing one. 
+        // If the variable isn't in this environment, try the enclosing one.
         if (enclosing != null) {
             enclosing.assign(name, value);
             return;
