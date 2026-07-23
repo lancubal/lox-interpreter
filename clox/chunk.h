@@ -6,6 +6,7 @@
 
 typedef enum {
   OP_RETURN,
+  OP_CLASS,
   OP_CONSTANT,
   OP_NIL,
   OP_TRUE,
@@ -18,6 +19,8 @@ typedef enum {
   OP_SET_GLOBAL,
   OP_GET_UPVALUE,
   OP_SET_UPVALUE,
+  OP_GET_PROPERTY,
+  OP_SET_PROPERTY,
   OP_EQUAL,
   OP_GREATER,
   OP_LESS,
