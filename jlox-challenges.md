@@ -156,6 +156,55 @@ together and let you define new types easily.
 (SML or Haskell would be ideal for this exercise, but Scheme or
 another Lisp works as well.)
 
+#### Answer:
+
+The complementary problem is known as the **Expression Problem**. 
+- In **Object-Oriented (OO)** programming, adding new types (subclasses) is easy, but adding new operations (methods) is hard because you have to touch every class. The Visitor pattern emulates the functional style in OO, making it easy to add operations but hard to add new types.
+- In **Functional Programming (FP)**, adding new operations (functions) is easy, but adding new types (variants in an Algebraic Data Type) is hard because you have to update every function that pattern-matches over the type.
+
+To emulate the OO style in a functional language (making it easy to add new types and bundle their operations together), we can use the **Object Pattern** (also known as the **Church encoding** or **records of functions**).
+
+##### 1. Scheme / Lisp Approach (Message-Passing Closures)
+In Lisp/Scheme, we can represent a "type" (or object) as a closure that captures the state and takes a "message" (symbol) indicating the operation to perform:
+
+```scheme
+;; Define a "type" constructor for a Binary Expression
+(define (make-binary-expr left op right)
+  (lambda (msg)
+    (cond ((eq? msg 'evaluate) (perform-op op (left 'evaluate) (right 'evaluate)))
+          ((eq? msg 'to-string) (string-append "(" (left 'to-string) " " op " " (right 'to-string) ")"))
+          (else (error "Unknown operation")))))
+```
+To define a new type, we just write a new constructor function (like `make-literal-expr`) that returns a lambda handling the same messages. The operations for each type are bundled together inside the constructor.
+
+##### 2. Haskell Approach (Record of Functions)
+In Haskell, we can represent the suite of operations on a type as a record containing function fields. Each "type" is an instance of this record:
+
+```haskell
+-- Define the bundle of operations
+data Expr = Expr {
+    evaluate :: IO Double,
+    toString :: String
+}
+
+-- Adding a new type is as simple as defining a new value of Expr:
+literalExpr :: Double -> Expr
+literalExpr val = Expr {
+    evaluate = return val,
+    toString = show val
+}
+
+binaryExpr :: String -> Expr -> Expr -> Expr
+binaryExpr op left right = Expr {
+    evaluate = do
+        lVal <- evaluate left
+        rVal <- evaluate right
+        return (applyOp op lVal rVal),
+    toString = "(" ++ toString left ++ " " ++ op ++ " " ++ toString right ++ ")"
+}
+```
+With this pattern, adding a new type (like a new unary expression) does not require changing any existing functions; we just define a new function that returns a record of type `Expr`. All operations for that type are grouped together in one place.
+
 ### 3.
 In reverse Polish notation (RPN), the operands to an arithmetic
 operator are both placed before the operator, so 1 + 2 becomes 1 2 +.
