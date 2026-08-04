@@ -6,6 +6,22 @@
 The lexical grammars of Python and Haskell are not regular. What
 does that mean, and why aren’t they?
 
+#### Answer:
+A lexical grammar is **regular** if it can be recognized by a Finite State Automaton (FSA) or described by a formal regular expression (without features like backreferences). Regular languages have finite memory and cannot perform tasks that require matching arbitrary pairs of delimiters or tracking unbounded counts.
+
+Python and Haskell are not regular at the lexical level for the following reasons:
+
+1. **Indentation and Layout (The Off-side Rule)**:
+   - Both languages use indentation to define block structures (e.g., Python's `INDENT` and `DEDENT` tokens).
+   - To generate these tokens, the scanner must keep a stack of current indentation levels to compare the current line's indentation with the previous ones.
+   - An FSA has only a finite number of states and cannot maintain an arbitrarily deep stack of indentation levels, which makes this feature context-free (requiring a Pushdown Automaton).
+
+2. **Nested Comments (Haskell)**:
+   - Haskell supports nested block comments of the form `{- ... {- ... -} ... -}`.
+   - Parsing nested delimiters requires matching opening and closing tokens at arbitrary depths. Because this requires keeping track of the nesting depth (which can be arbitrarily large), it cannot be recognized by a finite state automaton (similar to the classic non-regular language $L = \{a^n b^n\}$).
+
+---
+
 ### 2. 
 Aside from separating tokens—distinguishing print foo from
 printfoo—spaces aren’t used for much in most languages. However,
