@@ -1,0 +1,13 @@
+/* This is a simple block comment */
+print "Success 1";
+
+/* This is a multi-line
+   block comment
+   with multiple lines */
+print "Success 2";
+
+/* Nested block comments /* are very nice /* indeed */ test */ awesome */
+print "Success 3";
+
+// Standard comment still works
+print "Success 4";
