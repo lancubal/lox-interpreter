@@ -120,6 +120,34 @@ Produce a grammar that matches the same language but does not use
 any of that notational sugar.
 Bonus: What kind of expression does this bit of grammar encode?
 
+#### Answer:
+
+To remove the syntactic sugar, we expand the operators `|` (alternation), `*` (zero-or-more), `+` (one-or-more), `?` (optional), and parenthesis groupings into recursive production rules.
+
+Here is the equivalent context-free grammar:
+
+```
+expr      → IDENTIFIER
+expr      → NUMBER
+expr      → expr tail
+
+tail      → operation
+tail      → tail operation
+
+operation → "(" args ")"
+operation → "." IDENTIFIER
+
+args      → 
+args      → arg_list
+
+arg_list  → expr
+arg_list  → arg_list "," expr
+```
+*(Note: `args → ` has an empty right-hand side, representing the epsilon $\epsilon$ production for empty arguments).*
+
+#### Bonus Answer:
+This grammar encodes **function/method calls** and **property/member accesses** (getters) chained together, starting with an identifier or number. For example, it matches expressions like `foo.bar(baz, 42).qux()`.
+
 ### 2.
 The Visitor pattern lets you emulate the functional style in an object-
 oriented language. Devise a complementary pattern for a functional
