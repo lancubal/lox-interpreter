@@ -217,6 +217,51 @@ in RPN becomes:
 Define a visitor class for our syntax tree classes that takes an
 expression, converts it to RPN, and returns the resulting string.
 
+#### Answer:
+
+We defined a new visitor class `RpnPrinter` that implements `Expr.Visitor<String>` to format expressions into Reverse Polish Notation.
+
+##### Implementation Details:
+The new visitor class was created in `com/craftinginterpreters/lox/RpnPrinter.java`. Its core rules for translating expressions to RPN are:
+1. **Literals**: Returns the string representation of the literal directly (`1` becomes `"1"`).
+2. **Groupings**: Since RPN has no parenthesis groupings (operations are unambiguous due to their order), we simply discard the grouping structure and return the inner expression formatted (`(expr)` becomes `expr`).
+3. **Unary Operations**: Places the unary operator after its operand (`-123` becomes `"123 -"`).
+4. **Binary Operations**: Formats the left operand, then the right operand, and places the binary operator at the end (`1 + 2` becomes `"1 2 +"`).
+
+##### Code implementation:
+```java
+package com.craftinginterpreters.lox;
+
+class RpnPrinter implements Expr.Visitor<String> {
+    String print(Expr expr) {
+        return expr.accept(this);
+    }
+
+    @Override
+    public String visitBinaryExpr(Expr.Binary expr) {
+        return expr.left.accept(this) + " " + expr.right.accept(this) + " " + expr.operator.lexeme;
+    }
+
+    @Override
+    public String visitGroupingExpr(Expr.Grouping expr) {
+        return expr.expression.accept(this);
+    }
+
+    @Override
+    public String visitLiteralExpr(Expr.Literal expr) {
+        if (expr.value == null) return "nil";
+        return expr.value.toString();
+    }
+
+    @Override
+    public String visitUnaryExpr(Expr.Unary expr) {
+        return expr.right.accept(this) + " " + expr.operator.lexeme;
+    }
+
+    // (Other Expr.Visitor methods such as visitAssignExpr, visitCallExpr, etc. are also implemented)
+}
+```
+
 ## Parsing Expressions
 
 ### 1.
