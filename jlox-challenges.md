@@ -29,6 +29,34 @@ in a couple of dark corners, a space does affect how code is parsed in
 CoffeeScript, Ruby, and the C preprocessor. Where and what effect
 does it have in each of those languages?
 
+#### Answer:
+
+1. **Ruby**:
+   - **Method Calls without Parentheses vs. Expression Parentheses**:
+     In Ruby, parentheses are optional for method calls. If you write `foo(bar, baz)`, it calls `foo` with two arguments. However, if you write `foo (bar, baz)`, the space tells the parser that `(bar, baz)` is a single parenthesized expression being passed as the first argument, which results in a syntax error because the comma is invalid in that context.
+   - **Ambiguous Operators (Unary vs. Binary)**:
+     A space can change whether a symbol is parsed as a binary operator or a unary sign. For instance:
+     - `foo -bar` is interpreted as calling `foo` with the argument `-bar` (unary minus).
+     - `foo - bar` is interpreted as the binary subtraction `foo` minus `bar`.
+
+2. **CoffeeScript**:
+   - **Implicit Function Calls**:
+     Similar to Ruby, CoffeeScript allows calling functions without parentheses. Spacing changes how expressions are grouped:
+     - `a - b` is the binary subtraction `a - b`.
+     - `a -b` is a function call `a(-b)` where the argument is negative `b`.
+   - **Regular Expression Literals vs. Division**:
+     A space can disambiguate division from a regex literal:
+     - `a / b / c` is parsed as division (`a` divided by `b` divided by `c`).
+     - `a /b/ c` can be interpreted as a regex literal `/b/` appearing between `a` and `c`.
+
+3. **C Preprocessor**:
+   - **Macro Definitions (`#define`)**:
+     A space immediately after the macro name in a `#define` directive changes the macro's type:
+     - **Function-like macro** (no space): `#define FOO(x) (x + 1)` defines a macro that takes an argument `x`.
+     - **Object-like macro** (with space): `#define FOO (x) (x + 1)` defines a macro `FOO` that expands literally to the text `(x) (x + 1)`.
+
+---
+
 ### 3. 
 Our scanner here, like most, discards comments and whitespace since
 those aren’t needed by the parser. Why might you want to write a
