@@ -101,6 +101,28 @@ class Scanner {
                     // A comment goes until the end of the line.
                     while (peek() != '\n' && !isAtEnd())
                         advance();
+                } else if (match('*')) {
+                    // C-style block comments (supporting nesting)
+                    int depth = 1;
+                    while (depth > 0 && !isAtEnd()) {
+                        if (peek() == '/' && peekNext() == '*') {
+                            advance();
+                            advance();
+                            depth++;
+                        } else if (peek() == '*' && peekNext() == '/') {
+                            advance();
+                            advance();
+                            depth--;
+                        } else {
+                            if (peek() == '\n') {
+                                line++;
+                            }
+                            advance();
+                        }
+                    }
+                    if (depth > 0) {
+                        Lox.error(line, "Unterminated block comment.");
+                    }
                 } else {
                     addToken(SLASH);
                 }

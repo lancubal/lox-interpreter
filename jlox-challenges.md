@@ -87,6 +87,24 @@ Add support to Lox’s scanner for C-style /* ... */ block comments.
 Make sure to handle newlines in them. Consider allowing them to nest.
 Is adding support for nesting more work than you expected? Why?
 
+#### Answer:
+Yes, supporting nested comments is slightly more complex than non-nested comments, though it is straightforward when using a simple tracking variable.
+
+- **Non-nested block comments** can be parsed by scanning until the closing `*/` sequence is encountered. This can be expressed by a relatively simple state machine or regex.
+- **Nested block comments** are not a regular language. They require tracking the nesting level to know when the comment has truly closed (e.g., matching the number of `/*` with `*/`). 
+- In our scanner, we solved this by introducing a `depth` counter. We increment `depth` when we encounter `/*` and decrement it when we see `*/`. Only when `depth` reaches `0` do we stop scanning.
+- We also had to ensure we correctly advance two characters for both `/*` and `*/` inside the loop, to avoid false positives (e.g. an isolated `*` or `/` matching incorrectly, or overlapping delimiters like `/*/`).
+
+#### Implementation Details:
+In `com/craftinginterpreters/lox/Scanner.java`, we modified the `case '/'` block in `scanToken()` to handle `/*` block comments:
+1. Checked if the next character matches `*` using `match('*')`.
+2. Initialized `depth = 1`.
+3. Used a `while` loop that runs as long as `depth > 0` and the file has not ended.
+4. Inside the loop, if we peek at `/*` (`peek() == '/' && peekNext() == '*'`), we consume both characters and increment `depth`.
+5. If we peek at `*/` (`peek() == '*' && peekNext() == '/'`), we consume both characters and decrement `depth`.
+6. Tracked newlines by checking `peek() == '\n'` and incrementing the `line` counter.
+7. Reported an error if the loop finishes and `depth > 0` (unterminated block comment).
+
 ## Representing Code
 
 ### 1.
