@@ -586,6 +586,20 @@ provided our interpreter supports an important optimization. What is it,
 and why is it necessary? Name a language that uses this technique for
 iteration.
 
+#### Answer:
+
+##### 1. Optimization Name:
+**Tail Call Optimization (TCO)** (also known as **Tail Recursion Elimination**).
+
+##### 2. Why it is Necessary:
+When loops are expressed recursively using function calls, every function call normally allocates a new frame on the call stack. Without TCO, a loop executing thousands or millions of times will consume stack memory proportional to the number of iterations ($O(N)$ stack space), quickly exhausting the call stack and causing a **StackOverflowError**.
+
+With **Tail Call Optimization**, when a function call occurs in the *tail position* (the very last action performed before returning), the compiler or interpreter reuses the current stack frame instead of allocating a new one. This reduces the stack space consumption to $O(1)$ constant space, allowing recursive loops to run indefinitely without overflowing the stack.
+
+##### 3. Programming Language that uses this technique:
+**Scheme** (Lisp dialect).
+The Scheme language standards (R5RS, R6RS, R7RS) explicitly mandate that implementations must be properly tail-recursive. Scheme does not provide built-in primitive looping keywords like `while` or `for`; all iteration is performed using tail-recursive function calls.
+
 ### 3.
 Unlike Lox, most other C-style languages also support break and
 continue statements inside loops. Add support for break statements.
