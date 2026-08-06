@@ -362,6 +362,27 @@ Would you extend Lox to support comparing other types? If so, which
 pairs of types do you allow and how do you define their ordering?
 Justify your choices and compare them to other languages.
 
+#### Answer:
+
+##### 1. Decision & Allowed Pairs:
+I would extend Lox to allow **string-to-string comparisons**, but **disallow comparisons between mixed/different types**.
+
+- **Allowed Pairs**:
+  - `(Number, Number)`: Numerical comparison (standard mathematical ordering).
+  - `(String, String)`: Lexicographical comparison based on Unicode code point values (dictionary order).
+- **Disallowed Pairs**:
+  - Any pair of mixed types (e.g., `3 < "pancake"`, `true < 5`, `nil < "foo"`). These raise a runtime error: `"Operands must be two numbers or two strings."`.
+
+##### 2. Justification & Comparison with Other Languages:
+
+- **String Comparison (`String` vs `String`)**:
+  - *Why allow it?* Lexicographical ordering for strings (e.g. `"apple" < "banana"`) is intuitive, universally understood, and essential for basic tasks like sorting a list of names.
+
+- **Heterogeneous Comparison (`Mixed Types`)**:
+  - *JavaScript*: Performs implicit type coercion. For example, `"2" < 3` converts `"2"` to a number (`true`), but `3 < "pancake"` converts `"pancake"` to `NaN`, making `3 < NaN` evaluate to `false` and `"pancake" < 3` also `false`. This breaks total ordering assumptions and causes silent, hard-to-find bugs.
+  - *Python 2 vs Python 3*: Python 2 allowed comparing arbitrary types by ordering their type names alphabetically (`3 < "pancake"` returned `True` because `'int' < 'str'`). Python 3 deliberately removed this feature and now raises a `TypeError` when comparing incompatible types. Python's core developers realized that allowing cross-type comparisons hid logic bugs (such as forgetting to convert string user input into an integer before comparing).
+  - *Lox Choice*: In a dynamic language, catching type mismatches early via runtime errors is safer than returning arbitrary boolean results. Comparing a number to a string is almost always a bug, so raising a runtime error provides clearer feedback to the programmer.
+
 ### 2.
 Many languages define + such that if either operand is a string, the
 other is converted to a string and the results are then concatenated. For
