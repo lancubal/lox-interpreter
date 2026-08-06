@@ -712,6 +712,26 @@ local variables, or in an outer scope? What does Lox do? What about
 other languages you are familiar with? What do you think a language
 should do?
 
+#### Answer:
+
+##### 1. What Lox Does:
+- **At Chapter 10 (Dynamic Environments)**:
+  Lox creates an environment for the function parameters and a separate nested child environment for the body block `{ ... }`. Evaluating `var a = "local";` defines a new variable `a` in the inner block environment that silently shadows the parameter `a`. Thus, the program runs without errors.
+- **At Chapter 11 (Static Resolver)**:
+  When the static resolver is added, function parameters and the top-level statements of the function body share the same scope. `Resolver.java` reports a compile-time error: *"Already a variable with this name in this scope."*
+
+##### 2. How Other Languages Handle This:
+- **Java / C / C++ / C#**:
+  Triggers a **compile-time error** (`redefinition of 'a'` / `Variable 'a' is already defined in the scope`). Parameters and top-level body variables occupy the same method scope.
+- **JavaScript (`let` / `const`)**:
+  Triggers a **SyntaxError** (`Identifier 'a' has already been declared`). `let` and `const` disallow shadowing parameters at the top level of a function body.
+- **Python**:
+  Parameters and function-local variables share the same `locals()` scope dictionary. Reassigning `a = "local"` mutates the parameter variable `a` in place; it does not throw an error or create a shadow binding.
+
+##### 3. What a Language Should Do:
+A language **should treat parameters and function body variables as part of the same scope and raise a compile-time error upon redeclaration**.
+Declaring a local variable with the same name as a parameter makes the argument passed into the function immediately inaccessible without ever being read. This is almost universally a programmer mistake (a typo or misunderstanding of variable names). Catching it statically at compile time prevents subtle bugs.
+
 ## Resolving and Binding
 
 ### 1.
