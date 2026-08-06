@@ -329,6 +329,27 @@ appearing at the beginning of an expression. Report that as an error,
 but also parse and discard a right-hand operand with the appropriate
 precedence
 
+#### Answer:
+
+##### Explanation & Error Production Strategy:
+In a top-down recursive descent parser, every expression parsing method descends to `unary()` / `primary()` to parse the initial left-hand operand. If an expression mistakenly starts with a binary operator (such as `+`, `*`, `/`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `,`), it reaches `unary()` where no left operand has been supplied.
+
+By matching these binary operators at the start of `unary()`, we can:
+1. Log a syntax error reporting the missing left-hand operand.
+2. Parse and discard the right-hand operand at the operator's corresponding precedence level so the rest of the expression is consumed correctly before throwing a `ParseError` to synchronize.
+
+##### Implementation Details:
+In `com/craftinginterpreters/lox/Parser.java`, inside `unary()`:
+- Checked for leading binary operators (`+`, `*`, `/`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `,`).
+- Reported the error: `error(operator, "Binary operator missing left-hand operand.")`.
+- Discarded the right-hand operand using appropriate precedence:
+  - `*`, `/`: calls `factor()`
+  - `+`: calls `term()`
+  - `<`, `<=`, `>`, `>=`: calls `comparison()`
+  - `==`, `!=`: calls `equality()`
+  - `,`: calls `comma()`
+- Threw `ParseError` to allow clean statement synchronization.
+
 ## Evaluating Expressions
 
 ### 1.

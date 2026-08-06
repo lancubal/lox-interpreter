@@ -308,6 +308,39 @@ class Parser {
       Expr right = unary();
       return new Expr.Unary(operator, right);
     }
+
+    if (match(PLUS, SLASH, STAR, BANG_EQUAL, EQUAL_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, COMMA)) {
+      Token operator = previous();
+      error(operator, "Binary operator missing left-hand operand.");
+
+      switch (operator.type) {
+        case COMMA:
+          comma();
+          break;
+        case BANG_EQUAL:
+        case EQUAL_EQUAL:
+          equality();
+          break;
+        case GREATER:
+        case GREATER_EQUAL:
+        case LESS:
+        case LESS_EQUAL:
+          comparison();
+          break;
+        case PLUS:
+          term();
+          break;
+        case SLASH:
+        case STAR:
+          factor();
+          break;
+        default:
+          break;
+      }
+
+      throw new ParseError();
+    }
+
     return call();
   }
 

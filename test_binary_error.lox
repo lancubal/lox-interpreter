@@ -1,0 +1,4 @@
+// Test binary operator appearing without left-hand operand
++ 5;
+* 10;
+== 3;
