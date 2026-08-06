@@ -502,6 +502,38 @@ What did you expect it to do? Is it what you think it should do? What
 does analogous code in other languages you are familiar with do?
 What do you think users will expect this to do?
 
+#### Answer:
+
+##### 1. What the Program Does in Lox (at Chapter 8):
+The program prints **`3`**.
+
+- **Execution step-by-step**:
+  1. `var a = 1;` defines `a` in global scope with value `1`.
+  2. Inside the block, `var a = a + 2;` evaluates the initializer expression `a + 2` *before* `a` is defined in the inner environment scope.
+  3. When `a + 2` is evaluated, the lookup for `a` resolves to the outer global variable `a` (which is `1`), so `1 + 2` evaluates to `3`.
+  4. Finally, the inner environment binds the new local variable `a` to `3`.
+  5. `print a;` prints `3`.
+
+##### 2. Is it what it should do?
+While this behavior is a logical side-effect of evaluating initializers before binding the variable name in a simple dynamic environment, it is questionable language design. Referencing a variable in its own initializer (`var a = a + 2`) is usually a programmer bug (either a typo or a misunderstanding of shadowing). Later in the book (Chapter 11: Resolving and Binding), Lox introduces static scope resolution to catch this at compile-time and throw an error: *"Can't read local variable in its own initializer."*
+
+##### 3. How Analogous Code Behaves in Other Languages:
+- **JavaScript (`let` / `const`)**:
+  Throws `ReferenceError: Cannot access 'a' before initialization`. JavaScript hoists `let a` into the block's *Temporal Dead Zone (TDZ)*, so the inner `a` shadows the outer `a` for the entire block. Reading `a` in `let a = a + 2` accesses the uninitialized inner variable.
+- **Python**:
+  Throws `UnboundLocalError: local variable 'a' referenced before assignment`. Assigning to `a` anywhere in a function scope marks `a` as local for the entire function, masking the global `a`.
+- **C / C++**:
+  Compiles, but results in **undefined behavior / garbage value**. The name `a` is in scope immediately after its declarator, so `a + 2` reads uninitialized stack memory.
+- **Java / C#**:
+  Triggers a **compile-time error** (`Variable 'a' is already defined in the scope`). Java prohibits local variable shadowing within nested blocks in the same method.
+- **Scheme / Lisp**:
+  - `(let ((a (+ a 2))) ...)` evaluates the initializer `(+ a 2)` in the *outer* environment, producing `3`.
+  - `(letrec ...)` evaluates initializers with the new bindings in scope.
+
+##### 4. What Users Will Expect:
+- Programmers familiar with Scheme/Lisp or basic macro expansion might expect outer `a` to be used, producing `3`.
+- The vast majority of modern developers (accustomed to JS, Python, C++, Java) will expect an error (TDZ, shadowing/redeclaration error, or uninitialized access error), as reading a variable inside its own declaration is almost always an error.
+
 ## Control Flow
 
 ### 1.
