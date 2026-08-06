@@ -1,0 +1,2 @@
+// Test division by zero runtime error
+var x = 10 / 0;

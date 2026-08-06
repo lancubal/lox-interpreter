@@ -415,6 +415,33 @@ do?
 Change the implementation in visitBinaryExpr() to detect and report
 a runtime error for this case
 
+#### Answer:
+
+##### 1. Current Behavior in Lox:
+Lox represents numbers as Java `double` values (IEEE 754 floating-point). In Java, dividing a `double` by `0.0` yields `Double.POSITIVE_INFINITY`, `Double.NEGATIVE_INFINITY`, or `Double.NaN` (for `0.0 / 0.0`). It does not throw an exception, so Lox currently evaluates `5 / 0` to `Infinity` silently.
+
+##### 2. What Should Happen & Justification:
+Division by zero is mathematically undefined. Allowing `Infinity` or `NaN` to silently propagate into further arithmetic produces confusing downstream results and masks bugs. Throwing an explicit runtime error immediately when dividing by `0` catches programmer errors at the point of origin.
+
+##### 3. How Other Languages Handle Division by Zero:
+- **Java / C / C++**:
+  - *Integer Division*: Throws an exception (`ArithmeticException` in Java) or causes undefined behavior/signal (`SIGFPE` in C) because integers cannot represent infinity.
+  - *Floating-Point Division*: Adheres to IEEE 754, returning `Infinity` or `NaN`.
+- **Python**: Throws a `ZeroDivisionError` for **both** integer (`1 / 0`) and floating-point (`1.0 / 0.0`) division, prioritizing safety and explicit error reporting over IEEE 754 silent propagation.
+- **JavaScript**: Returns `Infinity`, `-Infinity`, or `NaN` for all divisions by zero because numbers are IEEE 754 double-precision floats.
+
+##### 4. Implementation Details:
+In `com/craftinginterpreters/lox/Interpreter.java`, we updated `case SLASH:` in `visitBinaryExpr()` to check if the right operand equals `0` and throw a `RuntimeError`:
+
+```java
+      case SLASH:
+        checkNumberOperands(expr.operator, left, right);
+        if ((double) right == 0) {
+          throw new RuntimeError(expr.operator, "Division by zero.");
+        }
+        return (double) left / (double) right;
+```
+
 ## Statements and State
 
 ### 1.
