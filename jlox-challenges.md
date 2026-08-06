@@ -451,6 +451,18 @@ the REPL to let users type in both statements and expressions. If they
 enter a statement, execute it. If they enter an expression, evaluate it
 and display the result value.
 
+#### Answer:
+
+##### Implementation Details:
+- **Parser (`com/craftinginterpreters/lox/Parser.java`)**:
+  Added `parseRepl()`. If the input starts with statement keywords (`var`, `class`, `if`, `while`, `for`, `print`, `return`, `{`, or `fun <identifier>`), it parses and returns `List<Stmt>`. Otherwise, it attempts to parse the line as an `Expr` (allowing an optional trailing semicolon).
+- **Interpreter (`com/craftinginterpreters/lox/Interpreter.java`)**:
+  Added `interpret(Expr expr)` which evaluates the expression and prints `stringify(value)` to `System.out`.
+- **Resolver (`com/craftinginterpreters/lox/Resolver.java`)**:
+  Exposed `resolve(Expr expr)` so individual REPL expressions can be resolved before evaluation.
+- **Main REPL (`com/craftinginterpreters/lox/Lox.java`)**:
+  Updated `runPrompt()` to invoke `runRepl()`. If the parser returns an `Expr`, it resolves and evaluates it with auto-printing. If it returns a `List<Stmt>`, it resolves and executes the statements normally.
+
 ### 2.
 Maybe you want Lox to be a little more explicit about variable
 initialization. Instead of implicitly initializing variables to nil, make it

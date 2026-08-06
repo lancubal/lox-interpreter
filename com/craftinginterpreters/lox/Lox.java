@@ -48,8 +48,40 @@ public class Lox {
             String line = reader.readLine();
             if (line == null)
                 break;
-            run(line);
+            runRepl(line);
             hadError = false;
+        }
+    }
+
+    private static void runRepl(String source) {
+        Scanner scanner = new Scanner(source);
+        List<Token> tokens = scanner.scanTokens();
+
+        Parser parser = new Parser(tokens);
+        Object syntax = parser.parseRepl();
+
+        if (hadError)
+            return;
+
+        if (syntax instanceof Expr) {
+            Expr expr = (Expr) syntax;
+            Resolver resolver = new Resolver(interpreter);
+            resolver.resolve(expr);
+
+            if (hadError)
+                return;
+
+            interpreter.interpret(expr);
+        } else if (syntax instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Stmt> statements = (List<Stmt>) syntax;
+            Resolver resolver = new Resolver(interpreter);
+            resolver.resolve(statements);
+
+            if (hadError)
+                return;
+
+            interpreter.interpret(statements);
         }
     }
 

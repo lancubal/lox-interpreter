@@ -24,6 +24,34 @@ class Parser {
     return statements;
   }
 
+  Object parseRepl() {
+    if (check(VAR) || check(CLASS) || check(IF) || check(WHILE) ||
+        check(FOR) || check(PRINT) || check(RETURN) || check(LEFT_BRACE) ||
+        (check(FUN) && checkNext(IDENTIFIER))) {
+      return parse();
+    }
+
+    try {
+      Expr expr = expression();
+      if (match(SEMICOLON)) {
+        // Optional trailing semicolon in REPL expression
+      }
+      if (isAtEnd()) {
+        return expr;
+      }
+    } catch (ParseError error) {
+      // Fall back to statements
+    }
+
+    return parse();
+  }
+
+  private boolean checkNext(TokenType type) {
+    if (isAtEnd()) return false;
+    if (tokens.get(current + 1).type == EOF) return false;
+    return tokens.get(current + 1).type == type;
+  }
+
   private Expr expression() {
     return comma();
   }
