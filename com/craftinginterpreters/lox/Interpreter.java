@@ -317,7 +317,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   // Lox sets a variable to nil if it isn’t explicitly initialized.
   @Override
   public Void visitVarStmt(Stmt.Var stmt) {
-    Object value = null;
+    Object value = Environment.UNINITIALIZED;
     if (stmt.initializer != null) {
       value = evaluate(stmt.initializer);
     }
@@ -358,7 +358,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     Integer distance = locals.get(expr);
     if (distance != null) {
       // Look up the variable in the environment at that distance
-      return environment.getAt(distance, name.lexeme);
+      return environment.getAt(distance, name);
     } else {
       // Not found. Assume it is global.
       return globals.get(name);

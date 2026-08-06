@@ -477,6 +477,18 @@ print a; // OK, was assigned first.
 print b; // Error!
 ```
 
+#### Answer:
+
+##### Implementation Details:
+1. **Sentinel Object (`com/craftinginterpreters/lox/Environment.java`)**:
+   Created a unique sentinel object: `static final Object UNINITIALIZED = new Object();`.
+2. **Variable Declaration (`com/craftinginterpreters/lox/Interpreter.java`)**:
+   Updated `visitVarStmt()`. If a `var` declaration lacks an initializer (`var a;`), its value is set to `Environment.UNINITIALIZED` rather than `null` (`nil`).
+3. **Variable Access (`com/craftinginterpreters/lox/Environment.java`)**:
+   Updated `get()` and `getAt()`. If the looked-up value matches `UNINITIALIZED`, a `RuntimeError` is thrown: `"Variable '<name>' used before initialization."`.
+4. **Variable Assignment**:
+   When a variable is assigned a value (`a = "assigned";`), the sentinel is overwritten in `Environment` with the assigned value, allowing subsequent reads.
+
 ### 3.
 What does the following program do?
 ```

@@ -1,0 +1,6 @@
+// Test accessing uninitialized variables
+var a;
+var b;
+a = "assigned";
+print a; // OK, prints "assigned"
+print b; // Runtime Error: Variable 'b' used before initialization.

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 class Environment {
+    static final Object UNINITIALIZED = new Object();
     final Environment enclosing;
     private final Map<String, Object> values = new HashMap<>();
 
@@ -31,7 +32,21 @@ class Environment {
 
     // Get a variable from the environment at the given distance.
     Object getAt(int distance, String name) {
-        return ancestor(distance).values.get(name);
+        Object value = ancestor(distance).values.get(name);
+        if (value == UNINITIALIZED) {
+            throw new RuntimeError(new Token(TokenType.IDENTIFIER, name, null, -1),
+                    "Variable '" + name + "' used before initialization.");
+        }
+        return value;
+    }
+
+    Object getAt(int distance, Token name) {
+        Object value = ancestor(distance).values.get(name.lexeme);
+        if (value == UNINITIALIZED) {
+            throw new RuntimeError(name,
+                    "Variable '" + name.lexeme + "' used before initialization.");
+        }
+        return value;
     }
 
     // Set a variable's value in the environment at the given distance.
@@ -41,7 +56,12 @@ class Environment {
 
     Object get(Token name) {
         if (values.containsKey(name.lexeme)) {
-            return values.get(name.lexeme);
+            Object value = values.get(name.lexeme);
+            if (value == UNINITIALIZED) {
+                throw new RuntimeError(name,
+                        "Variable '" + name.lexeme + "' used before initialization.");
+            }
+            return value;
         }
 
         if (enclosing != null)
