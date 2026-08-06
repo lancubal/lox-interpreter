@@ -215,7 +215,7 @@ class Parser {
   // If we find an =, we parse the right-hand side and then wrap it all up in an
   // assignment expression tree node.
   private Expr assignment() {
-    Expr expr = or();
+    Expr expr = ternary();
     if (match(EQUAL)) {
       Token equals = previous();
       Expr value = assignment();
@@ -227,6 +227,17 @@ class Parser {
         return new Expr.Set(get.object, get.name, value);
       }
       error(equals, "Invalid assignment target.");
+    }
+    return expr;
+  }
+
+  private Expr ternary() {
+    Expr expr = or();
+    if (match(QUESTION)) {
+      Expr thenBranch = expression();
+      consume(COLON, "Expect ':' after then branch of conditional operator.");
+      Expr elseBranch = ternary();
+      expr = new Expr.Ternary(expr, thenBranch, elseBranch);
     }
     return expr;
   }

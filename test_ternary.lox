@@ -1,0 +1,14 @@
+// Test ternary operator
+var a = true ? "yes" : "no";
+print a; // Expected: yes
+
+var b = false ? 1 : 2;
+print b; // Expected: 2
+
+// Test right-associativity: a ? b : c ? d : e -> a ? b : (c ? d : e)
+var c = false ? "first" : true ? "second" : "third";
+print c; // Expected: second
+
+// Test nested expressions in condition/then/else branches
+var d = 5 > 3 ? 10 + 20 : 0;
+print d; // Expected: 30

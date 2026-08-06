@@ -303,6 +303,25 @@ Likewise, add support for the C-style conditional or “ternary” operator
 ?:. What precedence level is allowed between the ? and :? Is the
 whole operator left-associative or right-associative?
 
+#### Answer:
+
+##### 1. Precedence & Associativity Answers:
+- **Precedence level between `?` and `:`**: Any expression (full `expression` level syntax, including comma and assignment) is allowed between `?` and `:`. Because the colon `:` acts as an explicit matching delimiter for `?`, the then-branch is unambiguous.
+- **Associativity**: The ternary operator is **right-associative**. An expression like `a ? b : c ? d : e` is evaluated as `a ? b : (c ? d : e)`.
+
+##### 2. Grammar:
+```bnf
+assignment → ( call "." )? IDENTIFIER "=" assignment
+           | ternary ;
+ternary    → logic_or ( "?" expression ":" ternary )? ;
+```
+
+##### 3. Implementation Details:
+- **Tokens (`com/craftinginterpreters/lox/TokenType.java`, `Scanner.java`)**: Added `QUESTION` (`?`) and `COLON` (`:`) token types and scanner rules.
+- **AST (`com/craftinginterpreters/lox/Expr.java`)**: Added `Expr.Ternary` node containing `Expr condition`, `Expr thenBranch`, and `Expr elseBranch`, plus `visitTernaryExpr` in `Visitor<R>`.
+- **Parser (`com/craftinginterpreters/lox/Parser.java`)**: Added `ternary()` method called from `assignment()`. If `?` matches, it parses `thenBranch` via `expression()`, consumes `:`, and recursively parses `elseBranch` via `ternary()` to enforce right-associativity.
+- **Interpreter (`com/craftinginterpreters/lox/Interpreter.java`)**: Implemented `visitTernaryExpr` with short-circuit evaluation (only the executed branch is evaluated).
+
 ### 3.
 Add error productions to handle each binary operator appearing
 without a left-hand operand. In other words, detect a binary operator

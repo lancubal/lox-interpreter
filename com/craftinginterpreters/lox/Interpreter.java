@@ -157,6 +157,16 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Object visitTernaryExpr(Expr.Ternary expr) {
+    Object condition = evaluate(expr.condition);
+    if (isTruthy(condition)) {
+      return evaluate(expr.thenBranch);
+    } else {
+      return evaluate(expr.elseBranch);
+    }
+  }
+
+  @Override
   public Object visitCallExpr(Expr.Call expr) {
     Object callee = evaluate(expr.callee);
 
