@@ -43,6 +43,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Void visitBreakStmt(Stmt.Break stmt) {
+    return null;
+  }
+
+  @Override
   public Void visitClassStmt(Stmt.Class stmt) {
     ClassType enclosingClass = currentClass;
     currentClass = ClassType.CLASS;

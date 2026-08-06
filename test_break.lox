@@ -1,0 +1,20 @@
+// Test break in while loop
+var i = 0;
+while (i < 10) {
+  if (i == 3) break;
+  print i;
+  i = i + 1;
+}
+// Expected output:
+// 0
+// 1
+// 2
+
+// Test break in for loop
+for (var j = 0; j < 10; j = j + 1) {
+  if (j == 2) break;
+  print j;
+}
+// Expected output:
+// 0
+// 1

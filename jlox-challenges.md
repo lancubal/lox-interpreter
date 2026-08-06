@@ -610,6 +610,22 @@ end of the nearest enclosing loop and proceeds from there. Note that
 the break may be nested inside other blocks and if statements that
 also need to be exited.
 
+#### Answer:
+
+##### Implementation Details:
+1. **Tokens & AST (`com/craftinginterpreters/lox/TokenType.java`, `Scanner.java`, `Stmt.java`)**:
+   Added `BREAK` token type, registered `"break"` in `Scanner`, and defined `Stmt.Break` AST node.
+2. **Static Validation in Parser (`com/craftinginterpreters/lox/Parser.java`)**:
+   - Maintained a `loopDepth` counter.
+   - Incremented `loopDepth` when parsing `whileStatement()` and `forStatement()` bodies (decrementing in a `finally` block).
+   - In `breakStatement()`, verified that `loopDepth > 0`. If `loopDepth == 0`, reported a syntax error: `"Can't use 'break' outside of a loop."`.
+3. **Resolver (`com/craftinginterpreters/lox/Resolver.java`)**:
+   Added `visitBreakStmt()`.
+4. **Runtime Control Flow in Interpreter (`com/craftinginterpreters/lox/Interpreter.java`)**:
+   - Created a lightweight `BreakException extends RuntimeException`.
+   - In `visitBreakStmt()`, threw `BreakException`.
+   - In `visitWhileStmt()`, wrapped the loop execution in `try { while (...) { execute(stmt.body); } } catch (BreakException b) {}`. Throwing `BreakException` instantly unwinds through any deeply nested blocks or `if` statements inside the loop body, terminating the loop execution.
+
 ## Functions
 
 ### 1.
