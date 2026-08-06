@@ -634,6 +634,21 @@ to a function matches the number of parameters it expects. Since this
 check is done at runtime on every call, it has a performance cost.
 Smalltalk implementations don’t have that problem. Why not?
 
+#### Answer:
+
+In Smalltalk, method names (**selectors**) are defined using **keyword syntax**, where each argument is preceded by a keyword ending with a colon (`:`).
+
+For example:
+- `collection at: index` sends the message `at:` (1 argument).
+- `collection at: index put: value` sends the message `at:put:` (2 arguments).
+
+##### Why Smalltalk doesn't need an explicit arity check:
+1. **The method name encodes the parameter count**: The selector name includes every keyword and colon. `at:` and `at:put:` are distinct method names in the class's method dictionary.
+2. **Dispatch enforces arity**: Method resolution in Smalltalk looks up the method by its full keyword selector name. Since a method definition's selector name explicitly specifies the exact number of colons (and thus parameters), finding a matching method during message dispatch inherently guarantees that the number of arguments matches the method's parameters.
+3. **No method mismatch**: If a caller sends a message with a different number of keywords/arguments (e.g. sending `at:put:` to an object that only defines `at:`), the message lookup fails to find a matching selector and raises a `doesNotUnderstand:` (Message Not Understood) exception, rather than an arity error.
+
+Because method lookup already incorporates the exact number of arguments into the selector key, Smalltalk implementations do not require a separate runtime check to verify arity during method invocation.
+
 ### 2.
 Lox’s function declaration syntax performs two independent
 operations. It creates a function and also binds it to a name. This
