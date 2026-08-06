@@ -543,6 +543,43 @@ built into the language. Show how conditional execution can be
 implemented in terms of those. Name a language that uses this
 technique for its control flow.
 
+#### Answer:
+
+##### 1. Implementing Conditional Execution via Dynamic Dispatch & Functions:
+By representing booleans as objects and passing branches as zero-argument functions (closures), dynamic dispatch automatically invokes the appropriate branch without requiring an `if` statement:
+
+```lox
+class Boolean {
+  ifThenElse(thenBranch, elseBranch) {}
+}
+
+class TrueClass < Boolean {
+  ifThenElse(thenBranch, elseBranch) {
+    return thenBranch();
+  }
+}
+
+class FalseClass < Boolean {
+  ifThenElse(thenBranch, elseBranch) {
+    return elseBranch();
+  }
+}
+
+var True = TrueClass();
+var False = FalseClass();
+
+// Usage example:
+var condition = True;
+condition.ifThenElse(
+  fun () { print "Condition is true!"; },
+  fun () { print "Condition is false!"; }
+);
+```
+
+##### 2. Programming Language that uses this technique:
+**Smalltalk** (and derivative languages like **Self**, **Pharo**, and **Squeak**).
+In Smalltalk, `ifTrue:ifFalse:` is not a language keyword or built-in statement; it is a regular message sent to boolean objects (`true` and `false`), where the branches are passed as block closures `[ ... ]`.
+
 ### 2.
 Likewise, looping can be implemented using those same tools,
 provided our interpreter supports an important optimization. What is it,
