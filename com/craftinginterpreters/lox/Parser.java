@@ -25,7 +25,19 @@ class Parser {
   }
 
   private Expr expression() {
-    return assignment();
+    return comma();
+  }
+
+  private Expr comma() {
+    Expr expr = assignment();
+
+    while (match(COMMA)) {
+      Token operator = previous();
+      Expr right = assignment();
+      expr = new Expr.Binary(expr, operator, right);
+    }
+
+    return expr;
   }
 
   private Stmt statement() {
@@ -314,7 +326,7 @@ class Parser {
           error(peek(), "Can't have more than 255 arguments.");
         }
 
-        arguments.add(expression());
+        arguments.add(assignment());
 
       } while (match(COMMA));
     }

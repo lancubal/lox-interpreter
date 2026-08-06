@@ -1,0 +1,9 @@
+// Test comma operator
+var a = (1, 2);
+print a; // Expected output: 2
+
+var b = (1, 2, 3 + 4);
+print b; // Expected output: 7
+
+var c;
+print (c = 10, c + 5); // Expected output: 15

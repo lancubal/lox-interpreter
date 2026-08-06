@@ -276,6 +276,28 @@ Add support for comma expressions. Give them the same precedence
 and associativity as in C. Write the grammar, and then implement the
 necessary parsing code.
 
+#### Answer:
+
+##### 1. Grammar:
+To give the comma operator the lowest precedence (lower than assignment) and left-associativity, we update the expression grammar hierarchy:
+
+```bnf
+expression → comma ;
+comma      → assignment ( "," assignment )* ;
+```
+
+##### 2. Precedence & Associativity:
+- **Precedence**: Lowest of all expression operators (below assignment `=`).
+- **Associativity**: Left-associative (`1, 2, 3` is parsed as `(1, 2), 3`).
+
+##### 3. Implementation Details:
+- **Parser (`com/craftinginterpreters/lox/Parser.java`)**:
+  - `expression()` now calls `comma()`.
+  - `comma()` parses a series of `assignment()` expressions separated by `COMMA` tokens into `Expr.Binary` nodes.
+  - In `finishCall()`, function arguments are parsed using `assignment()` so that commas act as argument delimiters rather than comma operators (unless wrapped in parentheses).
+- **Interpreter (`com/craftinginterpreters/lox/Interpreter.java`)**:
+  - In `visitBinaryExpr()`, added `case COMMA:` which evaluates the left operand (for side-effects), evaluates the right operand, and returns the right operand's result.
+
 ### 2.
 Likewise, add support for the C-style conditional or “ternary” operator
 ?:. What precedence level is allowed between the ? and :? Is the
