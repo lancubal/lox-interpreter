@@ -389,6 +389,24 @@ other is converted to a string and the results are then concatenated. For
 example, "scone" + 4 would yield scone4. Extend the code in
 visitBinaryExpr() to support that.
 
+#### Answer:
+
+##### Implementation Details:
+In `com/craftinginterpreters/lox/Interpreter.java`, we updated `case PLUS:` inside `visitBinaryExpr()`:
+- If both operands are numbers (`Double`), we perform numerical addition.
+- If **either** operand is a `String` (`left instanceof String || right instanceof String`), we convert both operands to strings using `stringify()` and return their concatenation.
+
+```java
+      case PLUS:
+        if (left instanceof Double && right instanceof Double) {
+          return (double) left + (double) right;
+        }
+        if (left instanceof String || right instanceof String) {
+          return stringify(left) + stringify(right);
+        }
+        throw new RuntimeError(expr.operator, "Operands must be two numbers or at least one string.");
+```
+
 ### 3.
 What happens right now if you divide a number by zero? What do you
 think should happen? Justify your choice. How do other languages you

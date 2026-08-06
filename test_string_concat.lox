@@ -1,0 +1,5 @@
+// Test implicit string concatenation with +
+print "scone" + 4; // Expected: scone4
+print 4 + "scone"; // Expected: 4scone
+print "val: " + true; // Expected: val: true
+print nil + " is nil"; // Expected: nil is nil
