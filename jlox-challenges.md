@@ -677,6 +677,29 @@ How do you handle the tricky case of an anonymous function
 expression occurring in an expression statement:
 ```fun () {};```
 
+#### Answer:
+
+##### Implementation Details:
+1. **AST Representation (`com/craftinginterpreters/lox/Expr.java`)**:
+   Added `Expr.Function(List<Token> params, List<Stmt> body)`.
+2. **Parser Expression Rule (`com/craftinginterpreters/lox/Parser.java`)**:
+   Updated `primary()`: when `match(FUN)` is encountered, it consumes `(`, parses parameter tokens, consumes `)`, parses the `{ ... }` block, and returns an `Expr.Function`.
+3. **Handling `fun () {};` in Expression Statements**:
+   The tricky case arises in `declaration()` where a line starting with `fun` could be either a named function declaration statement (`fun foo() {}`) or an anonymous function expression statement (`fun () {};`).
+   To disambiguate, in `declaration()`:
+   ```java
+   if (check(FUN) && checkNext(IDENTIFIER)) {
+     advance();
+     return function("function");
+   }
+   ```
+   If `FUN` is followed by an `IDENTIFIER`, it is parsed as a named function declaration statement (`Stmt.Function`). If `FUN` is **not** followed by an identifier (e.g. `fun (`), `declaration()` leaves `FUN` unconsumed and falls through to `statement()` -> `expressionStatement()`. `expressionStatement()` parses `expression()` -> `primary()` consumes `FUN`, creates `Expr.Function`, consumes `;`, and returns `Stmt.Expression(Expr.Function)`.
+4. **Interpreter Evaluation (`com/craftinginterpreters/lox/Interpreter.java` & `LoxFunction.java`)**:
+   - `visitFunctionExpr` constructs a synthetic `Stmt.Function(null, params, body)` and wraps it in a `LoxFunction`.
+   - Updated `LoxFunction.toString()` to handle `declaration.name == null`, returning `"<fn>"`.
+5. **Static Resolution (`com/craftinginterpreters/lox/Resolver.java`)**:
+   Implemented `visitFunctionExpr()` to push a new scope, bind function parameters, resolve body statements, and restore `currentFunction` state.
+
 ### 3.
 Is this program valid?
 ```

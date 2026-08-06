@@ -290,6 +290,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Object visitFunctionExpr(Expr.Function expr) {
+    Stmt.Function syntheticStmt = new Stmt.Function(null, expr.params, expr.body);
+    return new LoxFunction(syntheticStmt, environment, false);
+  }
+
+  @Override
   public Void visitIfStmt(Stmt.If stmt) {
     if (isTruthy(evaluate(stmt.condition))) {
       execute(stmt.thenBranch);

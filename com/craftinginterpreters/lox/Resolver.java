@@ -102,6 +102,23 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 
+  @Override
+  public Void visitFunctionExpr(Expr.Function expr) {
+    FunctionType enclosingFunction = currentFunction;
+    currentFunction = FunctionType.FUNCTION;
+
+    beginScope();
+    for (Token param : expr.params) {
+      declare(param);
+      define(param);
+    }
+    resolve(expr.body);
+    endScope();
+
+    currentFunction = enclosingFunction;
+    return null;
+  }
+
   // A variable declaration adds a new variable to the current scope.
   @Override
   public Void visitVarStmt(Stmt.Var stmt) {

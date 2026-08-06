@@ -157,7 +157,10 @@ class Parser {
   private Stmt declaration() {
     try {
       if (match(CLASS)) return classDeclaration();
-      if (match(FUN)) return function("function");
+      if (check(FUN) && checkNext(IDENTIFIER)) {
+        advance();
+        return function("function");
+      }
       if (match(VAR)) return varDeclaration();
       return statement();
     } catch (ParseError error) {
@@ -456,6 +459,24 @@ class Parser {
 
     if (match(IDENTIFIER)) {
       return new Expr.Variable(previous());
+    }
+
+    if (match(FUN)) {
+      consume(LEFT_PAREN, "Expect '(' after 'fun' in anonymous function.");
+      List<Token> parameters = new ArrayList<>();
+      if (!check(RIGHT_PAREN)) {
+        do {
+          if (parameters.size() >= 255) {
+            error(peek(), "Can't have more than 255 parameters.");
+          }
+          parameters.add(consume(IDENTIFIER, "Expect parameter name."));
+        } while (match(COMMA));
+      }
+      consume(RIGHT_PAREN, "Expect ')' after parameters.");
+
+      consume(LEFT_BRACE, "Expect '{' before function body.");
+      List<Stmt> body = block();
+      return new Expr.Function(parameters, body);
     }
 
     // Error handling for unexpected tokens.
