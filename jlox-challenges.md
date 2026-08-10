@@ -759,10 +759,35 @@ var a = "outer";
 {
 var a = a;
 }
+```
 Is it a runtime error? Compile error? Allowed? Do they treat global
 variables differently? Do you agree with their choices? Justify your
 answer.
-```
+
+#### Answer:
+
+##### 1. Behavior Across Programming Languages:
+- **JavaScript (`let` / `const`)**:
+  Throws a **runtime `ReferenceError: Cannot access 'a' before initialization`**. Due to the *Temporal Dead Zone (TDZ)*, the inner `let a` is hoisted to the block scope, so the right-hand side `a` attempts to read the uninitialized inner variable.
+- **C / C++**:
+  **Allowed by the compiler**, but produces **Undefined Behavior (UB)** at runtime. In C/C++, the identifier `a` enters scope immediately after its declarator (before the `=`). The RHS `a` reads the uninitialized local variable `a` from the stack, yielding garbage data.
+- **C# / Java**:
+  Triggers a **compile-time error** (`CS0841: Cannot use local variable 'a' before it is declared` in C#). Both C# and Java forbid using a local variable within its own initializer, and both disallow local variable shadowing within nested blocks of the same method.
+- **Python**:
+  Inside a function, throws a **runtime `UnboundLocalError: local variable 'a' referenced before assignment`**. Python marks `a` as a local variable for the entire function scope. At global scope (`a = "outer"; a = a`), Python **allows** it and rebinds global `a` to `"outer"`.
+
+##### 2. Treatment of Global Variables:
+Many languages treat global variables differently than local variables:
+- **Lox & Python**: Global variables are dynamically looked up in a global environment map. In Lox, `var a = "outer"; var a = a;` at the top level is allowed because global variables are not tracked by the static resolver's local scope stack; the RHS `a` looks up `"outer"` before re-defining `a`.
+- **C / C++**: Global (static) variables are zero-initialized before initializers run, so `int a = a;` at global scope initializes `a` to `0` (or `NULL`).
+
+##### 3. Evaluation & Agreement:
+The **compile-time error** approach (used by Lox static resolver, C#, and Java) is by far the **best and safest language design choice**.
+
+Referencing a local variable inside its own initializer (`var a = a;`) is almost universally a programmer bug (either a typo or a mistaken assumption that the RHS `a` refers to the outer `a`). 
+- **Compile error** (Lox/C#): Gives instant feedback to the programmer during static analysis before the code ever executes.
+- **Undefined Behavior** (C/C++): Silently reading garbage memory is dangerous and leads to subtle bugs or security vulnerabilities.
+- **Runtime error** (JS TDZ/Python): Better than UB, but defers error reporting until the specific code path is executed at runtime.
 
 ### 3.
 Extend the resolver to report an error if a local variable is never used.
