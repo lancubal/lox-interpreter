@@ -12,18 +12,24 @@ class LoxFunction implements LoxCallable {
   private final Environment closure;
 
   private final boolean isInitializer;
+  final boolean isGetter;
 
-  LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
+  LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer, boolean isGetter) {
     this.isInitializer = isInitializer;
+    this.isGetter = isGetter;
 
     this.declaration = declaration;
     this.closure = closure;
   }
 
+  LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
+    this(declaration, closure, isInitializer, false);
+  }
+
   LoxFunction bind(LoxInstance instance) {
     Environment environment = new Environment(closure);
     environment.define("this", instance);
-    return new LoxFunction(declaration, environment, isInitializer);
+    return new LoxFunction(declaration, environment, isInitializer, isGetter);
   }
 
   @Override

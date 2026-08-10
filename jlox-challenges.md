@@ -901,6 +901,19 @@ var circle = Circle(4);
 print circle.area; // Prints roughly "50.2655".
 ```
 
+#### Answer:
+
+##### Implementation Details:
+1. **Parser (`com/craftinginterpreters/lox/Parser.java`)**:
+   In `function(kind)`, after consuming the method name, we check if `kind.equals("method")` and the next token is `{` (`LEFT_BRACE`). If so, we parse it as a **getter method** (`isGetter = true`), skipping parameter list parsing and setting parameters to an empty list.
+2. **AST Representation (`com/craftinginterpreters/lox/Stmt.java`)**:
+   Added `final boolean isGetter;` to `Stmt.Function`.
+3. **Function Object (`com/craftinginterpreters/lox/LoxFunction.java`)**:
+   Added `final boolean isGetter;` to `LoxFunction`.
+4. **Property Access Evaluation (`com/craftinginterpreters/lox/LoxInstance.java` & `Interpreter.java`)**:
+   - In `Interpreter.java`, updated `visitGetExpr` to pass the interpreter instance: `((LoxInstance) object).get(expr.name, this)`.
+   - In `LoxInstance.get(Token name, Interpreter interpreter)`: when looking up a method, if `method.isGetter` is `true`, it binds `this` (`LoxFunction bound = method.bind(this)`) and immediately executes `bound.call(interpreter, [])`, returning the computed value directly.
+
 ### 3.
 Python and JavaScript allow you to freely access an object’s fields
 from outside of its own methods. Ruby and Smalltalk encapsulate

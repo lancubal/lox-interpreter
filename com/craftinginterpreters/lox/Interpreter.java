@@ -215,7 +215,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   public Object visitGetExpr(Expr.Get expr) {
     Object object = evaluate(expr.object);
     if (object instanceof LoxInstance) {
-      return ((LoxInstance) object).get(expr.name);
+      return ((LoxInstance) object).get(expr.name, this);
     }
     throw new RuntimeError(expr.name, "Only instances have properties.");
   }
@@ -258,14 +258,14 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     Map<String, LoxFunction> methods = new HashMap<>();
     for (Stmt.Function method : stmt.methods) {
       LoxFunction function =
-          new LoxFunction(method, environment, method.name.lexeme.equals("init"));
+          new LoxFunction(method, environment, method.name.lexeme.equals("init"), method.isGetter);
       methods.put(method.name.lexeme, function);
     }
 
     Map<String, LoxFunction> staticMethods = new HashMap<>();
     for (Stmt.Function method : stmt.staticMethods) {
       LoxFunction function =
-          new LoxFunction(method, environment, false);
+          new LoxFunction(method, environment, false, method.isGetter);
       staticMethods.put(method.name.lexeme, function);
     }
 

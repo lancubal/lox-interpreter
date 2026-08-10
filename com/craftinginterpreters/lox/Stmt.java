@@ -55,22 +55,28 @@ abstract class Stmt {
 
  final Expr expression;
  }
- static class Function extends Stmt {
- Function(Token name, List<Token> params, List<Stmt> body) {
- this.name = name;
- this.params = params;
- this.body = body;
- }
+  static class Function extends Stmt {
+    Function(Token name, List<Token> params, List<Stmt> body, boolean isGetter) {
+      this.name = name;
+      this.params = params;
+      this.body = body;
+      this.isGetter = isGetter;
+    }
 
- @Override
- <R> R accept(Visitor<R> visitor) {
- return visitor.visitFunctionStmt(this);
- }
+    Function(Token name, List<Token> params, List<Stmt> body) {
+      this(name, params, body, false);
+    }
 
- final Token name;
- final List<Token> params;
- final List<Stmt> body;
- }
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitFunctionStmt(this);
+    }
+
+    final Token name;
+    final List<Token> params;
+    final List<Stmt> body;
+    final boolean isGetter;
+  }
  static class Print extends Stmt {
  Print(Expr expression) {
  this.expression = expression;

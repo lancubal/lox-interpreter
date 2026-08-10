@@ -8,17 +8,27 @@ class LoxInstance {
     this.klass = klass;
   }
 
-  Object get(Token name) {
+  Object get(Token name, Interpreter interpreter) {
     if (fields.containsKey(name.lexeme)) {
       return fields.get(name.lexeme);
     }
 
     if (klass != null) {
       LoxFunction method = klass.findMethod(name.lexeme);
-      if (method != null) return method.bind(this);
+      if (method != null) {
+        LoxFunction bound = method.bind(this);
+        if (method.isGetter && interpreter != null) {
+          return bound.call(interpreter, new ArrayList<>());
+        }
+        return bound;
+      }
     }
 
     throw new RuntimeError(name, "Undefined property '" + name.lexeme + "'.");
+  }
+
+  Object get(Token name) {
+    return get(name, null);
   }
 
   void set(Token name, Object value) {

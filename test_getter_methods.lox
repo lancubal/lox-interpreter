@@ -1,0 +1,18 @@
+// Test getter methods (properties without parameter list)
+class Circle {
+  init(radius) {
+    this.radius = radius;
+  }
+
+  area {
+    return 3.141592653 * this.radius * this.radius;
+  }
+
+  perimeter {
+    return 2 * 3.141592653 * this.radius;
+  }
+}
+
+var circle = Circle(4);
+print circle.area;      // Expected: ~50.26548
+print circle.perimeter; // Expected: ~25.13274
