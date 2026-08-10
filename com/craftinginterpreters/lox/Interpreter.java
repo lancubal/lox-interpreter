@@ -9,7 +9,17 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
   final Environment globals = new Environment();
   private Environment environment = globals;
-  private final Map<Expr, Integer> locals = new HashMap<>();
+  static class Location {
+    final int distance;
+    final int index;
+
+    Location(int distance, int index) {
+      this.distance = distance;
+      this.index = index;
+    }
+  }
+
+  private final Map<Expr, Location> locals = new HashMap<>();
 
   Interpreter() {
     globals.define(
@@ -81,10 +91,10 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
   @Override
   public Object visitSuperExpr(Expr.Super expr) {
-    int distance = locals.get(expr);
-    LoxClass superclass = (LoxClass) environment.getAt(distance, "super");
+    Location location = locals.get(expr);
+    LoxClass superclass = (LoxClass) environment.getAt(location.distance, location.index);
 
-    LoxInstance object = (LoxInstance) environment.getAt(distance - 1, "this");
+    LoxInstance object = (LoxInstance) environment.getAt(location.distance - 1, "this");
 
     LoxFunction method = superclass.findMethod(expr.method.lexeme);
     if (method == null) {
@@ -218,8 +228,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     stmt.accept(this);
   }
 
-  void resolve(Expr expr, int depth) {
-    locals.put(expr, depth);
+  void resolve(Expr expr, int distance, int index) {
+    locals.put(expr, new Location(distance, index));
   }
 
   @Override
@@ -354,9 +364,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   public Object visitAssignExpr(Expr.Assign expr) {
     Object value = evaluate(expr.value);
 
-    Integer distance = locals.get(expr);
-    if (distance != null) {
-      environment.assignAt(distance, expr.name, value);
+    Location location = locals.get(expr);
+    if (location != null) {
+      environment.assignAt(location.distance, location.index, value);
     } else {
       // Variable is global.
       globals.assign(expr.name, value);
@@ -371,11 +381,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   private Object lookUpVariable(Token name, Expr expr) {
-    // Look up the resolved distance in the map
-    Integer distance = locals.get(expr);
-    if (distance != null) {
-      // Look up the variable in the environment at that distance
-      return environment.getAt(distance, name);
+    Location location = locals.get(expr);
+    if (location != null) {
+      return environment.getAt(location.distance, location.index);
     } else {
       // Not found. Assume it is global.
       return globals.get(name);

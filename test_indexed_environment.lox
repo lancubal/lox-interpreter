@@ -1,0 +1,22 @@
+// Test indexed array environment optimization
+fun calc(x, y) {
+  var a = x * 2;
+  var b = y + 3;
+  var c = a + b;
+  return c;
+}
+
+print calc(5, 10); // Expected: (5*2) + (10+3) = 10 + 13 = 23
+
+// Test nested scopes with indexed variables
+var outer = "global";
+{
+  var first = 10;
+  var second = 20;
+  {
+    var third = 30;
+    print first + second + third; // Expected: 60
+  }
+  second = 100;
+  print second; // Expected: 100
+}

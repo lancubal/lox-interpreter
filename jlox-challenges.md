@@ -821,6 +821,33 @@ scope the variable is in and its index and store that. In the interpreter,
 use that to quickly access a variable by its index instead of using a
 map.
 
+#### Answer:
+
+##### Implementation Details:
+1. **Scope Indexing in Resolver (`com/craftinginterpreters/lox/Resolver.java`)**:
+   - Added an `index` field to the `Variable` tracking class.
+   - When declaring a local variable in `declare(name)`, assigned a zero-based sequential slot index: `int index = scope.size()`.
+   - Updated `resolveLocal(expr, name)` to compute both the scope `distance` and slot `index`, passing both to `interpreter.resolve(expr, distance, var.index)`.
+
+2. **Location Metadata in Interpreter (`com/craftinginterpreters/lox/Interpreter.java`)**:
+   - Created a static inner class `Location { final int distance; final int index; }`.
+   - Updated `locals` map from `Map<Expr, Integer>` to `Map<Expr, Location>`.
+   - Updated `lookUpVariable()` and `visitAssignExpr()` to retrieve `Location` and delegate to `environment.getAt(location.distance, location.index)` and `environment.assignAt(location.distance, location.index, value)`.
+
+3. **Array/List Backed Environment (`com/craftinginterpreters/lox/Environment.java`)**:
+   - Added `List<Object> valuesList = new ArrayList<>()` to store local variable values by slot position.
+   - In `define(name, value)`, appended `value` to `valuesList` at position `valuesList.size()`.
+   - Added $O(1)$ constant-time indexed lookup and assignment methods:
+     ```java
+     Object getAt(int distance, int index) {
+         return ancestor(distance).valuesList.get(index);
+     }
+     void assignAt(int distance, int index, Object value) {
+         ancestor(distance).valuesList.set(index, value);
+     }
+     ```
+   This replaces runtime string hashing and map lookups with direct array indexing for all resolved local variables.
+
 ## Classes
 
 ### 1.

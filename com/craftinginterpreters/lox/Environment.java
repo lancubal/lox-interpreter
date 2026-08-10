@@ -1,12 +1,15 @@
 package com.craftinginterpreters.lox;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 class Environment {
     static final Object UNINITIALIZED = new Object();
     final Environment enclosing;
     private final Map<String, Object> values = new HashMap<>();
+    private final List<Object> valuesList = new ArrayList<>();
 
     Environment() {
         enclosing = null;
@@ -19,6 +22,7 @@ class Environment {
     // Bind a variable name to a value in the environment.
     void define(String name, Object value) {
         values.put(name, value);
+        valuesList.add(value);
     }
 
     // Walk up the chain of enclosing environments to find the one at the given distance.
@@ -30,7 +34,22 @@ class Environment {
         return environment;
     }
 
-    // Get a variable from the environment at the given distance.
+    // Fast O(1) indexed variable access for resolved local variables.
+    Object getAt(int distance, int index) {
+        Object value = ancestor(distance).valuesList.get(index);
+        if (value == UNINITIALIZED) {
+            throw new RuntimeError(new Token(TokenType.IDENTIFIER, "", null, -1),
+                    "Variable used before initialization.");
+        }
+        return value;
+    }
+
+    // Fast O(1) indexed variable assignment for resolved local variables.
+    void assignAt(int distance, int index, Object value) {
+        ancestor(distance).valuesList.set(index, value);
+    }
+
+    // Get a variable from the environment at the given distance (by name).
     Object getAt(int distance, String name) {
         Object value = ancestor(distance).values.get(name);
         if (value == UNINITIALIZED) {
@@ -49,7 +68,7 @@ class Environment {
         return value;
     }
 
-    // Set a variable's value in the environment at the given distance.
+    // Set a variable's value in the environment at the given distance (by name).
     void assignAt(int distance, Token name, Object value) {
         ancestor(distance).values.put(name.lexeme, value);
     }

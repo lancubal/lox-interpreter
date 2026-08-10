@@ -13,11 +13,13 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     final Token name;
     boolean state;
     boolean isUsed;
+    final int index;
 
-    Variable(Token name, boolean state) {
+    Variable(Token name, boolean state, int index) {
       this.name = name;
       this.state = state;
       this.isUsed = false;
+      this.index = index;
     }
   }
 
@@ -77,11 +79,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     if (stmt.superclass != null) {
       beginScope();
-      scopes.peek().put("super", new Variable(new Token(TokenType.SUPER, "super", null, -1), true));
+      scopes.peek().put("super", new Variable(new Token(TokenType.SUPER, "super", null, -1), true, 0));
     }
 
     beginScope();
-    scopes.peek().put("this", new Variable(new Token(TokenType.THIS, "this", null, -1), true));
+    scopes.peek().put("this", new Variable(new Token(TokenType.THIS, "this", null, -1), true, 0));
 
     for (Stmt.Function method : stmt.methods) {
       FunctionType declaration = FunctionType.METHOD;
@@ -354,7 +356,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       Lox.error(name, "Already a variable with this name in this scope.");
     }
 
-    scope.put(name.lexeme, new Variable(name, false));
+    int index = scope.size();
+    scope.put(name.lexeme, new Variable(name, false, index));
   }
 
   // We set the variable to "defined" to mark it fully initialized and ready for
@@ -365,17 +368,20 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     if (var != null) {
       var.state = true;
     } else {
-      scopes.peek().put(name.lexeme, new Variable(name, true));
+      int index = scopes.peek().size();
+      scopes.peek().put(name.lexeme, new Variable(name, true, index));
     }
   }
 
   // Find the variable in the nearest enclosing scope and tell the interpreter how
-  // many scopes away it is.
+  // many scopes away it is and its slot index in that scope.
   private void resolveLocal(Expr expr, Token name) {
     for (int i = scopes.size() - 1; i >= 0; i--) {
       if (scopes.get(i).containsKey(name.lexeme)) {
-        interpreter.resolve(expr, scopes.size() - 1 - i);
-        scopes.get(i).get(name.lexeme).isUsed = true;
+        Variable var = scopes.get(i).get(name.lexeme);
+        int distance = scopes.size() - 1 - i;
+        interpreter.resolve(expr, distance, var.index);
+        var.isUsed = true;
         return;
       }
     }
