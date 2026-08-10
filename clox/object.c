@@ -80,13 +80,13 @@ ObjNative *newNative(NativeFn function) {
   return native;
 }
 
-static ObjString *allocateString(const char *chars, int length, uint32_t hash) {
-  ObjString *string =
-      (ObjString *)allocateObject(sizeof(ObjString) + length + 1, OBJ_STRING);
+static ObjString *allocateString(const char *chars, int length, uint32_t hash,
+                                 bool isOwned) {
+  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
   string->hash = hash;
-  memcpy(string->chars, chars, length);
-  string->chars[length] = '\0';
+  string->isOwned = isOwned;
+  string->chars = chars;
 
   push(OBJ_VAL(string));
   tableSet(&vm.strings, string, NIL_VAL);
@@ -112,9 +112,7 @@ ObjString *takeString(char *chars, int length) {
     FREE_ARRAY(char, chars, length + 1);
     return interned;
   }
-  ObjString *string = allocateString(chars, length, hash);
-  FREE_ARRAY(char, chars, length + 1);
-  return string;
+  return allocateString(chars, length, hash, true);
 }
 
 ObjString *copyString(const char *chars, int length) {
@@ -122,7 +120,7 @@ ObjString *copyString(const char *chars, int length) {
   ObjString *interned = tableFindString(&vm.strings, chars, length, hash);
   if (interned != NULL)
     return interned;
-  return allocateString(chars, length, hash);
+  return allocateString(chars, length, hash, false);
 }
 
 ObjUpvalue *newUpvalue(Value *slot) {

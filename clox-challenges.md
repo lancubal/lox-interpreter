@@ -883,6 +883,56 @@ which `ObjStrings` own their character array and which are “constant
 strings” that just point back to the original source string or some other
 non-freeable location. Add support for this.
 
+#### Answer:
+
+##### Implementation Details:
+
+1. **Ownership Flag in `struct ObjString` (`clox/object.h`)**:
+   Added a boolean `isOwned` flag and a `const char *chars` pointer to `ObjString`:
+   ```c
+   struct ObjString {
+     Obj obj;
+     int length;
+     uint32_t hash;
+     bool isOwned;
+     const char *chars;
+   };
+   ```
+2. **Constant vs Owned Allocation (`clox/object.c`)**:
+   - `copyString()` (used for string literals in source code) sets `isOwned = false`. The `chars` pointer points directly to the existing source code memory buffer without making a heap copy.
+   - `takeString()` (used for dynamically concatenated strings) sets `isOwned = true` and takes ownership of the dynamically allocated heap buffer.
+   ```c
+   static ObjString *allocateString(const char *chars, int length, uint32_t hash, bool isOwned) {
+     ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+     string->length = length;
+     string->hash = hash;
+     string->isOwned = isOwned;
+     string->chars = chars;
+
+     push(OBJ_VAL(string));
+     tableSet(&vm.strings, string, NIL_VAL);
+     pop();
+
+     return string;
+   }
+   ```
+3. **Selective Freeing in Garbage Collector (`clox/memory.c`)**:
+   In `freeObject()`, when an `ObjString` is swept by the GC, we only free `string->chars` if `isOwned == true`:
+   ```c
+   case OBJ_STRING: {
+     ObjString *string = (ObjString *)object;
+     if (string->isOwned) {
+       FREE_ARRAY(char, (char *)string->chars, string->length + 1);
+     }
+     FREE(ObjString, object);
+     break;
+   }
+   ```
+
+##### Memory & Performance Benefits:
+- **Zero Memory Duplication for Literals**: String literals in source code consume zero additional heap memory for their characters.
+- **Lower GC Pressure**: Decreases the total bytes allocated on the heap, reducing the frequency of GC cycles.
+
 ---
 
 ### 3.

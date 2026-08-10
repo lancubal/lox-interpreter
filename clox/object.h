@@ -61,7 +61,8 @@ struct ObjString {
   Obj obj;
   int length;
   uint32_t hash;
-  char chars[];
+  bool isOwned;
+  const char *chars;
 };
 
 typedef struct ObjUpvalue {
