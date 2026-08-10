@@ -108,6 +108,28 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     return lookUpVariable(expr.keyword, expr);
   }
 
+  @Override
+  public Object visitInnerExpr(Expr.Inner expr) {
+    LoxInstance instance = (LoxInstance) environment.getAt(0, "this");
+    LoxClass currentClass = (LoxClass) environment.getAt(0, "currentClass");
+    String methodName = (String) environment.getAt(0, "currentMethodName");
+
+    List<Object> arguments = new ArrayList<>();
+    for (Expr argument : expr.arguments) {
+      arguments.add(evaluate(argument));
+    }
+
+    if (instance != null && currentClass != null && methodName != null) {
+      LoxClass targetClass = instance.klass.findNextSubclassMethod(currentClass, methodName);
+      if (targetClass != null) {
+        LoxFunction method = targetClass.getMethods().get(methodName);
+        return method.bind(instance, targetClass, methodName).call(this, arguments);
+      }
+    }
+
+    return null;
+  }
+
   // Grouping expressions evaluate to the value of the expression inside.
   @Override
   public Object visitGroupingExpr(Expr.Grouping expr) {

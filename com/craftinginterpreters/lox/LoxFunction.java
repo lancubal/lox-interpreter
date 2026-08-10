@@ -32,6 +32,14 @@ class LoxFunction implements LoxCallable {
     return new LoxFunction(declaration, environment, isInitializer, isGetter);
   }
 
+  LoxFunction bind(LoxInstance instance, LoxClass currentClass, String methodName) {
+    Environment environment = new Environment(closure);
+    environment.define("this", instance);
+    environment.define("currentClass", currentClass);
+    environment.define("currentMethodName", methodName);
+    return new LoxFunction(declaration, environment, isInitializer, isGetter);
+  }
+
   @Override
   public Object call(Interpreter interpreter, List<Object> arguments) {
     // Each function call gets its own environment, which is enclosed in the environment where the

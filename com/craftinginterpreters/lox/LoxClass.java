@@ -19,6 +19,51 @@ class LoxClass extends LoxInstance implements LoxCallable {
     return methods;
   }
 
+  static class ClassMethodPair {
+    final LoxClass klass;
+    final LoxFunction method;
+
+    ClassMethodPair(LoxClass klass, LoxFunction method) {
+      this.klass = klass;
+      this.method = method;
+    }
+  }
+
+  ClassMethodPair findTopMethod(String name) {
+    List<LoxClass> chain = new java.util.ArrayList<>();
+    LoxClass curr = this;
+    while (curr != null) {
+      chain.add(0, curr); // Prepend to get top-to-bottom order
+      curr = curr.superclass;
+    }
+
+    for (LoxClass klass : chain) {
+      if (klass.methods.containsKey(name)) {
+        return new ClassMethodPair(klass, klass.methods.get(name));
+      }
+    }
+    return null;
+  }
+
+  LoxClass findNextSubclassMethod(LoxClass currentClass, String name) {
+    List<LoxClass> chain = new java.util.ArrayList<>();
+    LoxClass curr = this;
+    while (curr != null) {
+      chain.add(0, curr);
+      curr = curr.superclass;
+    }
+
+    int index = chain.indexOf(currentClass);
+    if (index < 0) return null;
+
+    for (int i = index + 1; i < chain.size(); i++) {
+      if (chain.get(i).methods.containsKey(name)) {
+        return chain.get(i);
+      }
+    }
+    return null;
+  }
+
   LoxFunction findMethod(String name) {
     if (methods.containsKey(name)) {
       return methods.get(name);

@@ -1024,6 +1024,19 @@ Pipe full of custard and coat with chocolate.
 Place in a nice box.
 ```
 
+#### Answer:
+
+##### Implementation Details:
+1. **Top-Down Method Dispatch (`com/craftinginterpreters/lox/LoxClass.java` & `LoxInstance.java`)**:
+   - Implemented `findTopMethod(name)` in `LoxClass.java`. It collects all superclasses from `this.klass` up to the root, reverses the list (`[RootClass, ..., Subclass]`), and returns the method defined on the **highest** class in the inheritance chain.
+   - Updated `LoxInstance.get()` to look up methods using `findTopMethod()`, binding `this`, `currentClass`, and `currentMethodName` into the function environment.
+2. **`inner()` Keyword & AST (`com/craftinginterpreters/lox/TokenType.java`, `Scanner.java`, `Expr.java`, `Parser.java`)**:
+   - Added `INNER` token and registered `"inner"` keyword.
+   - Added `Expr.Inner` node to `Expr.java` and parsed `inner(...)` in `Parser.java`.
+3. **Subclass Dispatch Chaining (`com/craftinginterpreters/lox/LoxClass.java` & `Interpreter.java`)**:
+   - In `LoxClass.java`, implemented `findNextSubclassMethod(currentClass, methodName)`, which searches the inheritance chain top-to-bottom starting immediately after `currentClass` down to `instance.klass`.
+   - In `Interpreter.java`, `visitInnerExpr` evaluates `inner()` arguments and delegates to the next subclass method if present, or returns `nil` if no subclass defines the method.
+
 ### 3.
 In the chapter where I introduced Lox, I challenged you to come up
 with a couple of features you think the language is missing. Now that

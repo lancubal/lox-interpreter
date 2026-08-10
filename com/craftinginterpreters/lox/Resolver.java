@@ -61,6 +61,18 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Void visitInnerExpr(Expr.Inner expr) {
+    if (currentClass == ClassType.NONE) {
+      Lox.error(expr.keyword, "Can't use 'inner' outside of a class.");
+    }
+
+    for (Expr argument : expr.arguments) {
+      resolve(argument);
+    }
+    return null;
+  }
+
+  @Override
   public Void visitClassStmt(Stmt.Class stmt) {
     ClassType enclosingClass = currentClass;
     currentClass = ClassType.CLASS;

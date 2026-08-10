@@ -14,10 +14,10 @@ class LoxInstance {
     }
 
     if (klass != null) {
-      LoxFunction method = klass.findMethod(name.lexeme);
-      if (method != null) {
-        LoxFunction bound = method.bind(this);
-        if (method.isGetter && interpreter != null) {
+      LoxClass.ClassMethodPair pair = klass.findTopMethod(name.lexeme);
+      if (pair != null) {
+        LoxFunction bound = pair.method.bind(this, pair.klass, name.lexeme);
+        if (pair.method.isGetter && interpreter != null) {
           return bound.call(interpreter, new ArrayList<>());
         }
         return bound;

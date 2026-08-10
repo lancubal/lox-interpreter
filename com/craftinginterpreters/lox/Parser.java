@@ -472,6 +472,22 @@ class Parser {
       return new Expr.Super(keyword, method);
     }
 
+    if (match(INNER)) {
+      Token keyword = previous();
+      consume(LEFT_PAREN, "Expect '(' after 'inner'.");
+      List<Expr> arguments = new ArrayList<>();
+      if (!check(RIGHT_PAREN)) {
+        do {
+          if (arguments.size() >= 255) {
+            error(peek(), "Can't have more than 255 arguments.");
+          }
+          arguments.add(expression());
+        } while (match(COMMA));
+      }
+      consume(RIGHT_PAREN, "Expect ')' after arguments.");
+      return new Expr.Inner(keyword, arguments);
+    }
+
     if (match(THIS)) return new Expr.This(previous());
 
     if (match(IDENTIFIER)) {

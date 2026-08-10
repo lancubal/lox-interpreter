@@ -63,6 +63,31 @@ class RpnPrinter implements Expr.Visitor<String> {
         return expr.name.lexeme;
     }
 
+    @Override
+    public String visitGetExpr(Expr.Get expr) {
+        return expr.object.accept(this) + " " + expr.name.lexeme + " get";
+    }
+
+    @Override
+    public String visitSetExpr(Expr.Set expr) {
+        return expr.object.accept(this) + " " + expr.value.accept(this) + " " + expr.name.lexeme + " set";
+    }
+
+    @Override
+    public String visitThisExpr(Expr.This expr) {
+        return "this";
+    }
+
+    @Override
+    public String visitSuperExpr(Expr.Super expr) {
+        return expr.method.lexeme + " super";
+    }
+
+    @Override
+    public String visitInnerExpr(Expr.Inner expr) {
+        return "inner";
+    }
+
     public static void main(String[] args) {
         // Test expression: (1 + 2) * (4 - 3)
         Expr expression = new Expr.Binary(
