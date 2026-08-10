@@ -519,3 +519,48 @@ Name a few contextual keywords from other languages, and the
 context where they are meaningful. What are the pros and cons of
 having contextual keywords? How would you implement them in your
 language’s front end if you needed to?
+
+#### Answer:
+
+##### 1. Examples of Contextual Keywords in Modern Languages:
+- **C#**:
+  - `await`: Meaningful only inside methods declared with `async`.
+  - `get` / `set` / `value`: Meaningful only inside property declarations (`int Age { get; set; }`).
+  - `where` / `select` / `from`: Meaningful only inside LINQ query expressions.
+  - `var`: Contextual keyword for local variable type inference.
+- **Python (Soft Keywords)**:
+  - `match` / `case`: Introduced in Python 3.10 for pattern matching. Outside `match` blocks, `match` and `case` remain valid variable names.
+  - `type`: Introduced in Python 3.12 for type alias statements (`type Point = tuple[float, float]`).
+- **Java**:
+  - `var`: Introduced in Java 10 (`var x = 10;`). `var var = 5;` is legal Java code.
+  - `record` / `sealed` / `non-sealed` / `permits` / `yield`: Introduced in Java 14–17 for records, sealed classes, and switch expressions.
+- **Kotlin**:
+  - `it`: Implicit parameter in single-argument lambdas.
+  - `field`: Accesses property backing fields inside getters/setters.
+- **Swift**:
+  - `mutating` / `override` / `convenience` / `willSet` / `didSet`: Meaningful only in declaration modifiers and property observers.
+
+##### 2. Pros and Cons of Contextual Keywords:
+
+###### Pros:
+1. **Backward Compatibility**: Allows language designers to introduce major new features (like `async`/`await` or pattern matching) into mature languages without breaking existing codebase repositories that already use those words as identifiers.
+2. **Uncluttered Reserved Keyword List**: Preserves common English nouns/verbs for programmers to use as variable names.
+
+###### Cons:
+1. **Increased Front-End Complexity**: Tokenization and parsing become context-dependent rather than context-free.
+2. **Readability & Tooling Ambiguity**: IDE syntax highlighters and human programmers can find constructs like `var var = var;` or `await(await)` confusing to read.
+3. **Degraded Error Recovery**: When syntax errors occur near contextual keywords, the parser struggles to determine whether the user intended an identifier or a keyword.
+
+##### 3. Implementation Strategies in the Front-End:
+
+- **Strategy A: Scanner Emits `TOKEN_IDENTIFIER`, Parser Inspects Lexemes (Recommended)**:
+  The scanner treats all contextual keywords as plain `TOKEN_IDENTIFIER` tokens. When the parser enters a specific grammar production (e.g. `parseAsyncMethod()`), it inspects whether the current token is an identifier matching the string `"await"`:
+  ```c
+  if (check(TOKEN_IDENTIFIER) && matchLexeme("await")) {
+    // Parse as await expression
+  }
+  ```
+  *Benefit*: Keeps the lexer 100% context-free and decoupled from parsing logic.
+
+- **Strategy B: Parser-Driven Lexer State**:
+  The parser toggles a boolean flag in the lexer when entering specific contexts (`lexer.inAsyncContext = true`). When enabled, the lexer checks its keyword hash table for `"await"` and emits `TOKEN_AWAIT`; when disabled, `"await"` scans as `TOKEN_IDENTIFIER`.
