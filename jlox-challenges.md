@@ -739,6 +739,18 @@ Why is it safe to eagerly define the variable bound to a function’s
 name when other variables must wait until after they are initialized
 before they can be used?
 
+#### Answer:
+
+It is safe to eagerly define a function's name for two primary reasons:
+
+##### 1. Deferred Execution of the Function Body:
+For normal variables (`var x = expr;`), the initializer expression `expr` is evaluated immediately at runtime. If `x` were marked as defined before `expr` is evaluated, `expr` could try to read `x` before `x` has a value, attempting to access uninitialized state.
+
+In contrast, declaring a function (`fun foo() { ... }`) immediately binds the name `foo` to the newly created `LoxFunction` object. The statements inside the function body are **not** executed during declaration; execution of the body is deferred until the function is actually invoked at runtime. By the time any call to `foo()` takes place, the declaration statement has already finished, and `foo` is guaranteed to be fully defined in its environment.
+
+##### 2. Support for Recursion:
+Eagerly defining the function name before resolving the statements inside its body allows the function body to contain references to its own name (`foo()`). This enables **recursive** function calls. If the function name were not defined before resolving its body, the resolver would see `foo` inside `foo()`'s body as an attempt to read an uninitialized variable, incorrectly reporting the error *"Can't read local variable in its own initializer."*
+
 ### 2.
 How do other languages you know handle local variables that refer to
 the same name in their initializer, like:
