@@ -647,6 +647,41 @@ In the full Lox language, what other tokens can be used in both prefix
 and infix positions? What about in C or in another language of your
 choice?
 
+#### Answer:
+
+##### 1. Dual Prefix/Infix Tokens in Full Lox:
+- **`TOKEN_MINUS` (`-`)**:
+  - **Prefix**: Unary negation (`-x`).
+  - **Infix**: Subtraction (`a - b`).
+- **`TOKEN_LEFT_PAREN` (`(`)**:
+  - **Prefix**: Parenthesized grouping expression `(a + b)` via `grouping()`.
+  - **Infix**: Function call operator `fn(arg1, arg2)` via `call()`.
+
+##### 2. Dual Prefix/Infix Tokens in C and C++:
+- **`*` (Asterisk)**:
+  - **Prefix**: Pointer dereference (`*ptr`).
+  - **Infix**: Binary multiplication (`a * b`).
+- **`&` (Ampersand)**:
+  - **Prefix**: Address-of operator (`&variable`).
+  - **Infix**: Bitwise AND (`a & b`).
+- **`+` (Plus)**:
+  - **Prefix**: Unary positive identity (`+x`).
+  - **Infix**: Binary addition (`a + b`).
+- **`-` (Minus)**:
+  - **Prefix**: Unary negation (`-x`).
+  - **Infix**: Binary subtraction (`a - b`).
+- **`(` (Left Parenthesis)**:
+  - **Prefix**: Expression grouping `(a + b)` or Type casting `(int)x`.
+  - **Infix**: Function call invocation `foo(x)`.
+- **`[` (Left Bracket)** (C++11):
+  - **Prefix**: Lambda capture specification `[x]() { ... }`.
+  - **Infix**: Array subscripting `array[index]`.
+
+##### 3. Dual Tokens in Go:
+- **`<-` (Channel Operator)**:
+  - **Prefix**: Channel receive operation (`val := <-ch`).
+  - **Infix**: Channel send operation (`ch <- val`).
+
 ---
 
 ### 3.
