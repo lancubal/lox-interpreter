@@ -1041,3 +1041,31 @@ Place in a nice box.
 In the chapter where I introduced Lox, I challenged you to come up
 with a couple of features you think the language is missing. Now that
 you know how to build an interpreter, implement one of those features.
+
+#### Answer:
+
+##### Feature Choice: Native Array Literals and Subscript Access (`[1, 2, 3]` and `arr[index]`)
+We designed and implemented **Native Arrays with Subscript Get/Set Access** for Lox.
+
+##### Syntax Introduced:
+```lox
+var numbers = [10, 20, 30];
+print numbers[0];    // Prints 10
+numbers[1] = 99;     // Updates index 1
+print numbers.len(); // Prints 3
+numbers.add(400);    // Appends element
+```
+
+##### Implementation Details:
+1. **Tokens & Lexer (`com/craftinginterpreters/lox/TokenType.java` & `Scanner.java`)**:
+   Registered `LEFT_BRACKET` (`[`) and `RIGHT_BRACKET` (`]`) tokens.
+2. **AST (`com/craftinginterpreters/lox/Expr.java`)**:
+   Added `Expr.Array`, `Expr.SubscriptGet`, and `Expr.SubscriptSet` expression nodes.
+3. **Parser (`com/craftinginterpreters/lox/Parser.java`)**:
+   - In `primary()`, parsed array literals `[elem1, elem2, ...]`.
+   - In `call()`, added `[` to the postfix expression chain for subscripting (`expr[index]`).
+   - In `assignment()`, handled assignment targets ending in subscripting (`expr[index] = value`).
+4. **Runtime Array Representation (`com/craftinginterpreters/lox/LoxArray.java`)**:
+   Created `LoxArray` extending `LoxInstance` to back arrays with bounds checking, array formatting `[10, 20, 30]`, `.len()` / `.length` getter properties, and `.add()` / `.push()` native methods.
+5. **Resolver & Interpreter (`com/craftinginterpreters/lox/Resolver.java` & `Interpreter.java`)**:
+   Added resolution and execution visitors for `visitArrayExpr`, `visitSubscriptGetExpr`, and `visitSubscriptSetExpr`.

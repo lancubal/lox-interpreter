@@ -88,6 +88,26 @@ class RpnPrinter implements Expr.Visitor<String> {
         return "inner";
     }
 
+    @Override
+    public String visitArrayExpr(Expr.Array expr) {
+        StringBuilder builder = new StringBuilder();
+        for (Expr element : expr.elements) {
+            builder.append(element.accept(this)).append(" ");
+        }
+        builder.append("array");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitSubscriptGetExpr(Expr.SubscriptGet expr) {
+        return expr.object.accept(this) + " " + expr.index.accept(this) + " []";
+    }
+
+    @Override
+    public String visitSubscriptSetExpr(Expr.SubscriptSet expr) {
+        return expr.object.accept(this) + " " + expr.index.accept(this) + " " + expr.value.accept(this) + " []=";
+    }
+
     public static void main(String[] args) {
         // Test expression: (1 + 2) * (4 - 3)
         Expr expression = new Expr.Binary(

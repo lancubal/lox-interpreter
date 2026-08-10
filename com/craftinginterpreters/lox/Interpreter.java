@@ -242,6 +242,49 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     throw new RuntimeError(expr.name, "Only instances have properties.");
   }
 
+  @Override
+  public Object visitArrayExpr(Expr.Array expr) {
+    List<Object> elements = new ArrayList<>();
+    for (Expr element : expr.elements) {
+      elements.add(evaluate(element));
+    }
+    return new LoxArray(elements);
+  }
+
+  @Override
+  public Object visitSubscriptGetExpr(Expr.SubscriptGet expr) {
+    Object object = evaluate(expr.object);
+    Object indexObj = evaluate(expr.index);
+
+    if (!(object instanceof LoxArray)) {
+      throw new RuntimeError(expr.bracket, "Only arrays can be subscripted.");
+    }
+    if (!(indexObj instanceof Double)) {
+      throw new RuntimeError(expr.bracket, "Array index must be a number.");
+    }
+
+    int index = ((Double) indexObj).intValue();
+    return ((LoxArray) object).get(index, expr.bracket);
+  }
+
+  @Override
+  public Object visitSubscriptSetExpr(Expr.SubscriptSet expr) {
+    Object object = evaluate(expr.object);
+    Object indexObj = evaluate(expr.index);
+    Object value = evaluate(expr.value);
+
+    if (!(object instanceof LoxArray)) {
+      throw new RuntimeError(expr.bracket, "Only arrays can be subscripted.");
+    }
+    if (!(indexObj instanceof Double)) {
+      throw new RuntimeError(expr.bracket, "Array index must be a number.");
+    }
+
+    int index = ((Double) indexObj).intValue();
+    ((LoxArray) object).set(index, value, expr.bracket);
+    return value;
+  }
+
   private Object evaluate(Expr expr) {
     return expr.accept(this);
   }

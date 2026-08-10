@@ -56,6 +56,29 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Void visitArrayExpr(Expr.Array expr) {
+    for (Expr element : expr.elements) {
+      resolve(element);
+    }
+    return null;
+  }
+
+  @Override
+  public Void visitSubscriptGetExpr(Expr.SubscriptGet expr) {
+    resolve(expr.object);
+    resolve(expr.index);
+    return null;
+  }
+
+  @Override
+  public Void visitSubscriptSetExpr(Expr.SubscriptSet expr) {
+    resolve(expr.object);
+    resolve(expr.index);
+    resolve(expr.value);
+    return null;
+  }
+
+  @Override
   public Void visitBreakStmt(Stmt.Break stmt) {
     return null;
   }

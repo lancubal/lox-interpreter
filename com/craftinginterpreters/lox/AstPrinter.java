@@ -90,6 +90,26 @@ class AstPrinter implements Expr.Visitor<String> {
         return "inner";
     }
 
+    @Override
+    public String visitArrayExpr(Expr.Array expr) {
+        StringBuilder builder = new StringBuilder("(array");
+        for (Expr element : expr.elements) {
+            builder.append(" ").append(element.accept(this));
+        }
+        builder.append(")");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitSubscriptGetExpr(Expr.SubscriptGet expr) {
+        return parenthesize("subscript", expr.object, expr.index);
+    }
+
+    @Override
+    public String visitSubscriptSetExpr(Expr.SubscriptSet expr) {
+        return parenthesize("subscript-set", expr.object, expr.index, expr.value);
+    }
+
     private String parenthesize(String name, Expr... exprs) {
         StringBuilder builder = new StringBuilder();
         builder.append("(").append(name);

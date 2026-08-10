@@ -4,6 +4,7 @@ import java.util.List;
 
 abstract class Expr {
  interface Visitor<R> {
+ R visitArrayExpr(Array expr);
  R visitAssignExpr(Assign expr);
  R visitBinaryExpr(Binary expr);
  R visitCallExpr(Call expr);
@@ -14,6 +15,8 @@ abstract class Expr {
  R visitLiteralExpr(Literal expr);
  R visitLogicalExpr(Logical expr);
  R visitSetExpr(Set expr);
+ R visitSubscriptGetExpr(SubscriptGet expr);
+ R visitSubscriptSetExpr(SubscriptSet expr);
  R visitSuperExpr(Super expr);
  R visitTernaryExpr(Ternary expr);
  R visitThisExpr(This expr);
@@ -224,20 +227,71 @@ abstract class Expr {
  final Token method;
  }
 
- static class Inner extends Expr {
- Inner(Token keyword, List<Expr> arguments) {
- this.keyword = keyword;
- this.arguments = arguments;
- }
+  static class Inner extends Expr {
+    Inner(Token keyword, List<Expr> arguments) {
+      this.keyword = keyword;
+      this.arguments = arguments;
+    }
 
- @Override
- <R> R accept(Visitor<R> visitor) {
- return visitor.visitInnerExpr(this);
- }
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitInnerExpr(this);
+    }
 
- final Token keyword;
- final List<Expr> arguments;
- }
+    final Token keyword;
+    final List<Expr> arguments;
+  }
 
- abstract <R> R accept(Visitor<R> visitor);
+  static class Array extends Expr {
+    Array(Token bracket, List<Expr> elements) {
+      this.bracket = bracket;
+      this.elements = elements;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitArrayExpr(this);
+    }
+
+    final Token bracket;
+    final List<Expr> elements;
+  }
+
+  static class SubscriptGet extends Expr {
+    SubscriptGet(Expr object, Token bracket, Expr index) {
+      this.object = object;
+      this.bracket = bracket;
+      this.index = index;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitSubscriptGetExpr(this);
+    }
+
+    final Expr object;
+    final Token bracket;
+    final Expr index;
+  }
+
+  static class SubscriptSet extends Expr {
+    SubscriptSet(Expr object, Token bracket, Expr index, Expr value) {
+      this.object = object;
+      this.bracket = bracket;
+      this.index = index;
+      this.value = value;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitSubscriptSetExpr(this);
+    }
+
+    final Expr object;
+    final Token bracket;
+    final Expr index;
+    final Expr value;
+  }
+
+  abstract <R> R accept(Visitor<R> visitor);
 }

@@ -1,0 +1,15 @@
+// Test native Array literals and subscript access in Lox
+var numbers = [10, 20, 30];
+print numbers;        // Expected: [10, 20, 30]
+print numbers[0];     // Expected: 10
+print numbers[2];     // Expected: 30
+
+numbers[1] = 99;
+print numbers[1];     // Expected: 99
+print numbers;        // Expected: [10, 99, 30]
+
+print numbers.len();  // Expected: 3
+
+numbers.add(400);
+print numbers;        // Expected: [10, 99, 30, 400]
+print numbers.len();  // Expected: 4
