@@ -437,6 +437,41 @@ What tokens would you emit for:
 Consider looking at other language implementations that support
 interpolation to see how they handle it.
 
+#### Answer:
+
+##### 1. Token Types Required:
+To support string interpolation, a scanner divides interpolated strings into three segmented token types (alongside standard `TOKEN_STRING` for non-interpolated strings):
+- **`TOKEN_STRING_HEAD`**: String segment from opening `"` up to the first `${`.
+- **`TOKEN_STRING_MIDDLE`**: String segment from a closing `}` of an interpolated expression up to the next `${`.
+- **`TOKEN_STRING_TAIL`**: String segment from the closing `}` of the final interpolated expression up to the closing `"`.
+
+##### 2. Token Sequence for `"${drink} will be ready in ${steep + cool} minutes."`:
+```
+TOKEN_STRING_HEAD    ""                          (Initial empty head before ${drink})
+TOKEN_IDENTIFIER     "drink"
+TOKEN_STRING_MIDDLE  " will be ready in "        (Text between first } and second ${)
+TOKEN_IDENTIFIER     "steep"
+TOKEN_PLUS           "+"
+TOKEN_IDENTIFIER     "cool"
+TOKEN_STRING_TAIL    " minutes."                 (Final tail from second } to ending ")
+```
+
+##### 3. Token Sequence for `"Nested ${"interpolation?! Are you ${"mad?!"}"}"`:
+Tracing nested levels via a scanner brace stack:
+```
+TOKEN_STRING_HEAD    "Nested "                   (Outer string head)
+TOKEN_STRING_HEAD    "interpolation?! Are you "  (Level 1 nested string head)
+TOKEN_STRING         "mad?!"                     (Level 2 inner plain string literal)
+TOKEN_STRING_TAIL    ""                          (Level 1 nested empty string tail)
+TOKEN_STRING_TAIL    ""                          (Outer empty string tail)
+```
+
+##### 4. Scanner Implementation & Nesting Stack:
+Real-world languages (e.g. Swift, ES6 template literals, Kotlin, Ruby) manage interpolation by maintaining a **Scanner State Stack**:
+- When encountering `${` inside a string, push `STATE_INTERPOLATION` onto the scanner state stack and switch the scanner to normal expression lexing.
+- Track `{` and `}` in normal code to match nested blocks.
+- When popping a `}` that corresponds to `STATE_INTERPOLATION`, switch the scanner back to string mode to scan `TOKEN_STRING_MIDDLE` or `TOKEN_STRING_TAIL`.
+
 ---
 
 ### 2.
