@@ -360,3 +360,48 @@ height in the end. It might be faster to simply negate the value in place
 on the stack and leave `stackTop` alone. Try that and see if you can
 measure a performance difference.
 Are there other instructions where you can do a similar optimization?
+
+#### Answer:
+
+##### 1. In-Place Negation Implementation (`clox/vm.c`):
+Replaced the `pop()` + `push()` cycle with direct top-of-stack mutation:
+```c
+case OP_NEGATE:
+  if (!IS_NUMBER(peek(0))) {
+    runtimeError("Operand must be a number.");
+    return INTERPRET_RUNTIME_ERROR;
+  }
+  vm.stackTop[-1] = NUMBER_VAL(-AS_NUMBER(vm.stackTop[-1]));
+  break;
+```
+
+##### 2. Performance Impact Analysis:
+- **Avoids Stack Pointer Updates**: Eliminates `stackTop--` followed immediately by `stackTop++`.
+- **Bypasses Dynamic Push Checks**: Skips capacity bound comparisons and conditional branches inside `push()`.
+- **Improves CPU Cache Locality**: Mutates `vm.stackTop[-1]` directly in L1 data cache without intermediate register spill and push operations.
+
+##### 3. Other Instructions Suited for In-Place Optimizations:
+1. **`OP_NOT` (`!x`)**:
+   Replaces `push(BOOL_VAL(isFalsey(pop())))` with:
+   ```c
+   case OP_NOT:
+     vm.stackTop[-1] = BOOL_VAL(isFalsey(vm.stackTop[-1]));
+     break;
+   ```
+2. **Binary Arithmetic Operators (`OP_ADD`, `OP_SUBTRACT`, `OP_MULTIPLY`, `OP_DIVIDE`)**:
+   Instead of `pop()`, `pop()`, `push()` (3 stack pointer writes and a capacity check), we compute `a op b` directly into `vm.stackTop[-2]` and decrement `vm.stackTop--` **once**:
+   ```c
+   #define BINARY_OP(valueType, op) \
+     do { \
+       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+         runtimeError("Operands must be numbers."); \
+         return INTERPRET_RUNTIME_ERROR; \
+       } \
+       double b = AS_NUMBER(vm.stackTop[-1]); \
+       double a = AS_NUMBER(vm.stackTop[-2]); \
+       vm.stackTop[-2] = valueType(a op b); \
+       vm.stackTop--; \
+     } while (false)
+   ```
+3. **Comparison Operators (`OP_EQUAL`, `OP_GREATER`, `OP_LESS`)**:
+   Evaluates comparison between `vm.stackTop[-2]` and `vm.stackTop[-1]`, writes the `bool` result directly into `vm.stackTop[-2]`, and decrements `vm.stackTop--` once.

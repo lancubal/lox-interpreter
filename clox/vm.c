@@ -293,9 +293,10 @@ static InterpretResult run() {
       runtimeError("Operands must be numbers.");                               \
       return INTERPRET_RUNTIME_ERROR;                                          \
     }                                                                          \
-    double b = AS_NUMBER(pop());                                               \
-    double a = AS_NUMBER(pop());                                               \
-    push(valueType(a op b));                                                   \
+    double b = AS_NUMBER(vm.stackTop[-1]);                                     \
+    double a = AS_NUMBER(vm.stackTop[-2]);                                     \
+    vm.stackTop[-2] = valueType(a op b);                                       \
+    vm.stackTop--;                                                             \
   } while (false)
 
   for (;;) {
@@ -460,14 +461,14 @@ static InterpretResult run() {
       BINARY_OP(NUMBER_VAL, /);
       break;
     case OP_NOT:
-      push(BOOL_VAL(isFalsey(pop())));
+      vm.stackTop[-1] = BOOL_VAL(isFalsey(vm.stackTop[-1]));
       break;
     case OP_NEGATE:
       if (!IS_NUMBER(peek(0))) {
         runtimeError("Operand must be a number.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      push(NUMBER_VAL(-AS_NUMBER(pop())));
+      vm.stackTop[-1] = NUMBER_VAL(-AS_NUMBER(vm.stackTop[-1]));
       break;
     case OP_PRINT: {
       printValue(pop());
