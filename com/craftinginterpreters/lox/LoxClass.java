@@ -15,6 +15,10 @@ class LoxClass extends LoxInstance implements LoxCallable {
     this.methods = methods;
   }
 
+  Map<String, LoxFunction> getMethods() {
+    return methods;
+  }
+
   LoxFunction findMethod(String name) {
     if (methods.containsKey(name)) {
       return methods.get(name);

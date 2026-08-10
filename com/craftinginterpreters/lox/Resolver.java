@@ -77,6 +77,10 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       resolve(stmt.superclass);
     }
 
+    for (Expr.Variable mixin : stmt.mixins) {
+      resolve(mixin);
+    }
+
     if (stmt.superclass != null) {
       beginScope();
       scopes.peek().put("super", new Variable(new Token(TokenType.SUPER, "super", null, -1), true, 0));

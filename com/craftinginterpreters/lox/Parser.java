@@ -176,6 +176,13 @@ class Parser {
       consume(IDENTIFIER, "Expect superclass name.");
       superclass = new Expr.Variable(previous());
     }
+    List<Expr.Variable> mixins = new ArrayList<>();
+    if (match(WITH)) {
+      do {
+        consume(IDENTIFIER, "Expect mixin name.");
+        mixins.add(new Expr.Variable(previous()));
+      } while (match(COMMA));
+    }
     consume(LEFT_BRACE, "Expect '{' before class body.");
     List<Stmt.Function> methods = new ArrayList<>();
     List<Stmt.Function> staticMethods = new ArrayList<>();
@@ -187,7 +194,7 @@ class Parser {
       }
     }
     consume(RIGHT_BRACE, "Expect '}' after class body.");
-    return new Stmt.Class(name, superclass, methods, staticMethods);
+    return new Stmt.Class(name, superclass, mixins, methods, staticMethods);
   }
 
   private Stmt varDeclaration() {

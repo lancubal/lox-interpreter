@@ -255,14 +255,31 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
       environment.define("super", superclass);
     }
 
+    List<LoxClass> mixinClasses = new ArrayList<>();
+    for (Expr.Variable mixinExpr : stmt.mixins) {
+      Object mixinObj = evaluate(mixinExpr);
+      if (!(mixinObj instanceof LoxClass)) {
+        throw new RuntimeError(mixinExpr.name, "Mixin must be a class.");
+      }
+      mixinClasses.add((LoxClass) mixinObj);
+    }
+
     Map<String, LoxFunction> methods = new HashMap<>();
+    Map<String, LoxFunction> staticMethods = new HashMap<>();
+
+    for (LoxClass mixinClass : mixinClasses) {
+      methods.putAll(mixinClass.getMethods());
+      if (mixinClass.klass != null) {
+        staticMethods.putAll(mixinClass.klass.getMethods());
+      }
+    }
+
     for (Stmt.Function method : stmt.methods) {
       LoxFunction function =
           new LoxFunction(method, environment, method.name.lexeme.equals("init"), method.isGetter);
       methods.put(method.name.lexeme, function);
     }
 
-    Map<String, LoxFunction> staticMethods = new HashMap<>();
     for (Stmt.Function method : stmt.staticMethods) {
       LoxFunction function =
           new LoxFunction(method, environment, false, method.isGetter);

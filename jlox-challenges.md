@@ -956,6 +956,26 @@ If you were to add some feature along these lines to Lox, which would
 you pick and why? If you’re feeling courageous (and you should be at
 this point), go ahead and add it.
 
+#### Answer:
+
+##### Feature Choice: Mixins / Traits (`with Mixin1, Mixin2`)
+We chose **Mixins / Traits** for Lox. Multiple inheritance introduces severe complexity like the "Diamond Problem" (ambiguous method dispatch, virtual inheritance overhead). Mixins allow classes to compose modular capabilities cleanly without altering the single-inheritance class hierarchy.
+
+##### Implementation Details:
+1. **Syntax & Keywords (`com/craftinginterpreters/lox/TokenType.java` & `Scanner.java`)**:
+   Added the `WITH` token and registered the `"with"` keyword.
+2. **AST (`com/craftinginterpreters/lox/Stmt.java`)**:
+   Updated `Stmt.Class` to store `List<Expr.Variable> mixins`.
+3. **Parser (`com/craftinginterpreters/lox/Parser.java`)**:
+   In `classDeclaration()`, added support for optional `with Mixin1, Mixin2` clauses:
+   ```lox
+   class Person < Human with Printable, Loggable { ... }
+   ```
+4. **Resolver (`com/craftinginterpreters/lox/Resolver.java`)**:
+   Updated `visitClassStmt()` to resolve all mixin expressions in `stmt.mixins`.
+5. **Interpreter (`com/craftinginterpreters/lox/Interpreter.java`)**:
+   In `visitClassStmt()`, evaluated all mixin classes and copied their instance and static methods (`mixinClass.getMethods()`) into the target class and metaclass method maps. Target class methods override mixin methods if names collide.
+
 ### 2.
 In Lox, as in most other object-oriented languages, when looking up a
 method, we start at the bottom of the class hierarchy and work our way
