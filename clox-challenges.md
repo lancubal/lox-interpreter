@@ -748,9 +748,9 @@ cope with their absence?
 #### Answer:
 
 In Chapter 18, we already eliminated `!=`, `<=`, and `>=` by compiling them as:
-- `a != b` $\rightarrow$ `a == b` followed by `OP_NOT`
-- `a <= b` $\rightarrow$ `a > b` followed by `OP_NOT`
-- `a >= b` $\rightarrow$ `a < b` followed by `OP_NOT`
+- `a != b` → `a == b` followed by `OP_NOT`
+- `a <= b` → `a > b` followed by `OP_NOT`
+- `a >= b` → `a < b` followed by `OP_NOT`
 
 We could reduce our binary instructions even further:
 
