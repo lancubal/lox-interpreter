@@ -489,6 +489,22 @@ Later versions of C++ are smarter and can handle the above code. Java
 and C# never had the problem. How do those languages specify and
 implement this?
 
+#### Answer:
+
+##### 1. Cause of the Problem (Maximal Munch Principle):
+Scanners follow the **Maximal Munch Rule** (Longest Match Rule). When reading `>>`, a standard independent lexer greedily matches the 2-character right-shift token (`TOKEN_RIGHT_SHIFT`) rather than two 1-character tokens (`>`). In C++03, lexing was strictly decoupled from parsing, resulting in a syntax error when the parser received a right-shift token inside template closing brackets `vector<vector<string>>`.
+
+##### 2. Java and C# Specification and Implementation:
+Java (JLS §3.5) and C# never suffered from this issue because their language specifications explicitly allow generic type parsing to drive token splitting:
+- **Parser-Driven Token Splitting**: In Java and C#, the lexer emits `>>` or `>>>` as usual. However, when the parser is inside a generic type parameter context and encounters a `>>` token:
+  1. The parser consumes the first `>` character to close the inner generic type parameter.
+  2. The parser splits the `>>` token, leaving the remaining `>` character in the token stream to close the outer generic type parameter.
+
+##### 3. Modern C++ (C++11 DR 175) Solution:
+C++11 revised the language grammar rule (CWG 175):
+- In template argument lists, any `>` character that would otherwise form a `>>` right-shift operator is treated as two distinct `>` tokens, **unless** the expression is explicitly enclosed in parentheses `vector<int<(1 >> 2)>>`.
+- **Implementation Mechanism**: The front-end tracks `template_nesting_depth`. When `template_nesting_depth > 0` and no parentheses enclose the expression, the lexer/parser automatically decomposes `>>` into two `>` tokens.
+
 ---
 
 ### 3.
