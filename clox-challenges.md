@@ -745,6 +745,38 @@ We could reduce our binary operators even further than we did here.
 Which other instructions can you eliminate, and how would the compiler
 cope with their absence?
 
+#### Answer:
+
+In Chapter 18, we already eliminated `!=`, `<=`, and `>=` by compiling them as:
+- `a != b` $\rightarrow$ `a == b` followed by `OP_NOT`
+- `a <= b` $\rightarrow$ `a > b` followed by `OP_NOT`
+- `a >= b` $\rightarrow$ `a < b` followed by `OP_NOT`
+
+We could reduce our binary instructions even further:
+
+##### 1. Eliminate `OP_LESS` (`<`):
+- **Equivalence**: `a < b` is identical to `b > a`.
+- **Compiler Strategy**: When compiling `a < b`, the compiler parses `b` first, parses `a` second, and emits `OP_GREATER`.
+- **Result**: We eliminate the `OP_LESS` instruction entirely from the VM instruction set.
+
+##### 2. Eliminate `OP_SUBTRACT` (`-`):
+- **Equivalence**: `a - b` is identical to `a + (-b)`.
+- **Compiler Strategy**: When compiling `a - b`, the compiler parses `a`, parses `b`, emits `OP_NEGATE` for `b`, and then emits `OP_ADD`.
+- **Result**: Removes `OP_SUBTRACT` from the VM.
+
+##### 3. Summary of Reduced Instruction Transpilations:
+
+| Expression | Equivalent Expression | Emitted Bytecode Sequence |
+| :--- | :--- | :--- |
+| `a < b` | `b > a` | Compile `b`, compile `a`, `OP_GREATER` |
+| `a <= b` | `!(a > b)` | Compile `a`, compile `b`, `OP_GREATER`, `OP_NOT` |
+| `a >= b` | `!(b > a)` | Compile `b`, compile `a`, `OP_GREATER`, `OP_NOT` |
+| `a != b` | `!(a == b)` | Compile `a`, compile `b`, `OP_EQUAL`, `OP_NOT` |
+| `a - b` | `a + (-b)` | Compile `a`, compile `b`, `OP_NEGATE`, `OP_ADD` |
+
+##### Trade-offs:
+While eliminating instructions shrinks the VM opcode table and binary footprint, it increases bytecode size, adds extra stack manipulation, and slows down VM execution for common arithmetic operations.
+
 ---
 
 ### 2.
