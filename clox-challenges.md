@@ -824,6 +824,53 @@ performance. A more efficient solution relies on a technique called
 flexible array members. Use that to store the `ObjString` and its
 character array in a single contiguous allocation.
 
+#### Answer:
+
+##### Implementation Details:
+
+1. **Flexible Array Member Definition (`clox/object.h`)**:
+   Updated `struct ObjString` so `chars` is defined as a C99 Flexible Array Member at the end of the struct instead of a separate `char*` pointer:
+   ```c
+   struct ObjString {
+     Obj obj;
+     int length;
+     uint32_t hash;
+     char chars[]; // Flexible array member
+   };
+   ```
+2. **Single Contiguous Allocation (`clox/object.c`)**:
+   Updated `allocateString()` to request `sizeof(ObjString) + length + 1` bytes in a single allocation. The string characters are copied directly into `string->chars`:
+   ```c
+   static ObjString *allocateString(const char *chars, int length, uint32_t hash) {
+     ObjString *string =
+         (ObjString *)allocateObject(sizeof(ObjString) + length + 1, OBJ_STRING);
+     string->length = length;
+     string->hash = hash;
+     memcpy(string->chars, chars, length);
+     string->chars[length] = '\0';
+
+     push(OBJ_VAL(string));
+     tableSet(&vm.strings, string, NIL_VAL);
+     pop();
+
+     return string;
+   }
+   ```
+3. **Single Deallocation (`clox/memory.c`)**:
+   Updated `freeObject()` so freeing an `ObjString` requires only a single `reallocate()` call:
+   ```c
+   case OBJ_STRING: {
+     ObjString *string = (ObjString *)object;
+     reallocate(object, sizeof(ObjString) + string->length + 1, 0);
+     break;
+   }
+   ```
+
+##### Performance Benefits:
+1. **50% Reduction in Heap Allocations**: Allocating an `ObjString` takes 1 call to the memory pool allocator instead of 2.
+2. **Zero Pointer Indirection Overhead**: Accessing `string->chars` directly computes the memory offset adjacent to `ObjString` fields, eliminating double pointer dereferencing.
+3. **Improved L1 Cache Locality**: String header metadata (`length`, `hash`) and character bytes reside together in the same cache line.
+
 ---
 
 ### 2.
