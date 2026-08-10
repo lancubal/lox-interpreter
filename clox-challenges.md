@@ -692,3 +692,48 @@ have more than two operands separated by tokens. C’s conditional or
 Add support for that operator to the compiler. You don’t have to
 generate any bytecode, just show how you would hook it up to the
 parser and handle the operands.
+
+#### Answer:
+
+##### 1. New Token Types and Precedence Level:
+Add `TOKEN_QUESTION` (`?`) and `TOKEN_COLON` (`:`) to `TokenType` in `scanner.h`.
+Add `PREC_CONDITIONAL` precedence right above `PREC_ASSIGNMENT`:
+```c
+typedef enum {
+  PREC_NONE,
+  PREC_ASSIGNMENT,  // =
+  PREC_CONDITIONAL, // ?:
+  PREC_OR,          // or
+  ...
+} Precedence;
+```
+
+##### 2. Pratt Parse Table Registration (`compiler.c`):
+Register `conditional()` as the infix parser function for `TOKEN_QUESTION`:
+```c
+[TOKEN_QUESTION] = {NULL, conditional, PREC_CONDITIONAL},
+[TOKEN_COLON]    = {NULL, NULL,        PREC_NONE},
+```
+
+##### 3. Parsing Function `conditional()` (`compiler.c`):
+When `?` is encountered, the left-hand condition expression has already been parsed and compiled. `conditional()` handles parsing the middle (`then`) and right (`else`) operand expressions:
+```c
+static void conditional(bool canAssign) {
+  // 1. Parse the middle "then" expression:
+  parsePrecedence(PREC_CONDITIONAL);
+
+  // 2. Consume the required ':' delimiter token:
+  consume(TOKEN_COLON, "Expect ':' after '?' in conditional expression.");
+
+  // 3. Parse the right "else" expression:
+  // (Using PREC_CONDITIONAL - 1 allows right-associativity for chained ternary operators)
+  parsePrecedence(PREC_CONDITIONAL - 1);
+}
+```
+
+##### 4. Control Flow Overview (If Bytecode Emitted):
+- After condition: emit `OP_JUMP_IF_FALSE` to jump to the `else` branch if condition is falsey.
+- After `then` expression: emit `OP_JUMP` to skip past the `else` branch.
+- Patch jump offsets after both branches are compiled.
+
+---
