@@ -939,3 +939,39 @@ non-freeable location. Add support for this.
 If Lox was your language, what would you have it do when a user tries
 to use `+` with one string operand and the other some other type? Justify
 your choice. What do other languages do?
+
+#### Answer:
+
+##### 1. How Other Languages Handle `string + non_string`:
+
+###### A. Implicit Coercion / Auto-Stringification (`"age: " + 25` → `"age: 25"`):
+- **Languages**: JavaScript, Java, C#.
+- **Behavior**: If either operand is a string, the non-string operand is automatically converted to its string representation (`toString()`) and concatenated.
+- **Pros**: Convenient for quick logging and formatting.
+- **Cons**: Leads to surprising dynamic typing bugs and associativity anomalies:
+  - In JavaScript: `"5" + 3` yields `"53"`, but `"5" - 3` yields `2`.
+  - Associativity issue: `1 + 2 + "3"` yields `"33"`, whereas `"1" + 2 + 3` yields `"123"`.
+
+###### B. Strict Type Error / Explicit Conversion Required:
+- **Languages**: Python, Ruby, Rust, Go, Haskell.
+- **Behavior**: Raises a runtime `TypeError` or compile error when `+` receives mixed types (`"age: " + 25`).
+- **Required Syntax**: Explicit conversion required (`"age: " + str(25)` in Python, `"age: " + 25.to_s` in Ruby, or `fmt.Sprintf` in Go).
+- **Pros**: High predictability, prevents subtle type coercion bugs, preserves clean operator semantics.
+
+###### C. Dedicated String Concatenation Operator:
+- **Languages**: PHP (`.`), Lua (`..`), Perl (`.`).
+- **Behavior**: Distinguishes numeric addition (`+`) from string concatenation (`.` or `..`).
+
+---
+
+##### 2. Recommended Choice for Lox: **Strict Type Error with Explicit Conversion**
+
+##### Justification:
+1. **Consistency with Lox's Type Philosophy**:
+   Lox is dynamic but strictly typed at runtime. Operations like `true + false` or `"a" - 2` already raise runtime errors. Allowing `+` to silently coerce numbers or booleans into strings would create an inconsistent exception where `+` behaves coercively while all other arithmetic operators enforce type boundaries.
+2. **Prevents Silent Bugs**:
+   Implicit string coercion causes bugs in calculation-heavy programs where a string unexpectedly contaminates a numeric pipeline.
+3. **String Interpolation is the Superior Solution**:
+   With string interpolation (e.g. `"${drink} in ${time} min"`) or explicit string functions (`String(val)`), developers can construct formatted strings cleanly and intentionally without overloading the binary `+` operator.
+
+---
