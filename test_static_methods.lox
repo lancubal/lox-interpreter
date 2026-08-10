@@ -1,0 +1,23 @@
+// Test static class methods
+class Math {
+  class square(n) {
+    return n * n;
+  }
+
+  class cube(n) {
+    return n * n * n;
+  }
+}
+
+print Math.square(3); // Expected: 9
+print Math.cube(3);   // Expected: 27
+
+// Test inheritance of static methods
+class AdvancedMath < Math {
+  class pow4(n) {
+    return Math.square(Math.square(n));
+  }
+}
+
+print AdvancedMath.square(4); // Expected: 16 (inherited static method)
+print AdvancedMath.pow4(2);    // Expected: 16

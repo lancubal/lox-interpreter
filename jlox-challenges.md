@@ -867,6 +867,21 @@ You can solve this however you like, but the “metaclasses” used by
 Smalltalk and Ruby are a particularly elegant approach. Hint: Make
 LoxClass extend LoxInstance and go from there.
 
+#### Answer:
+
+##### Implementation Details:
+1. **Metaclass Architecture (`com/craftinginterpreters/lox/LoxClass.java` & `LoxInstance.java`)**:
+   - Changed `LoxClass` to extend `LoxInstance`: `class LoxClass extends LoxInstance implements LoxCallable`.
+   - In `LoxClass`'s constructor, invoked `super(metaclass)`. Because `LoxClass` is now a `LoxInstance`, evaluating a property access on a class object (e.g. `Math.square`) invokes `LoxInstance.get()`, which looks up the method on `Math`'s `klass` (its metaclass).
+2. **AST & Parsing (`com/craftinginterpreters/lox/Stmt.java` & `Parser.java`)**:
+   - Updated `Stmt.Class` to store `List<Stmt.Function> staticMethods`.
+   - In `classDeclaration()`, when `match(CLASS)` is encountered inside the class body, the method declaration is parsed into `staticMethods`.
+3. **Static Resolution (`com/craftinginterpreters/lox/Resolver.java`)**:
+   - Updated `visitClassStmt()` to resolve all static methods in `stmt.staticMethods`.
+4. **Interpreter Execution (`com/craftinginterpreters/lox/Interpreter.java`)**:
+   - In `visitClassStmt()`, evaluated `stmt.staticMethods` into a `staticMethods` map and created a `metaclass` instance of `LoxClass`.
+   - Instantiated `LoxClass klass = new LoxClass(metaclass, stmt.name.lexeme, (LoxClass) superclass, methods)`. When `Math.square` is called, `LoxInstance.get()` looks up `square` on `metaclass` and returns the `LoxFunction` bound to `Math`.
+
 ### 2. 
 Most modern languages support “getters” and “setters”—members on
 a class that look like field reads and writes but that actually execute

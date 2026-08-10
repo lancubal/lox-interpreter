@@ -1,7 +1,7 @@
 package com.craftinginterpreters.lox;
 
 class LoxInstance {
-  private LoxClass klass;
+  LoxClass klass;
   private final Map<String, Object> fields = new HashMap<>();
 
   LoxInstance(LoxClass klass) {
@@ -13,8 +13,10 @@ class LoxInstance {
       return fields.get(name.lexeme);
     }
 
-    LoxFunction method = klass.findMethod(name.lexeme);
-    if (method != null) return method.bind(this);
+    if (klass != null) {
+      LoxFunction method = klass.findMethod(name.lexeme);
+      if (method != null) return method.bind(this);
+    }
 
     throw new RuntimeError(name, "Undefined property '" + name.lexeme + "'.");
   }
@@ -25,6 +27,7 @@ class LoxInstance {
 
   @Override
   public String toString() {
+    if (klass == null) return "Object instance";
     return klass.name + " instance";
   }
 }

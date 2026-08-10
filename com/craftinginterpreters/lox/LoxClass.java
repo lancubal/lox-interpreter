@@ -1,11 +1,15 @@
 package com.craftinginterpreters.lox;
 
-class LoxClass {
+import java.util.List;
+import java.util.Map;
+
+class LoxClass extends LoxInstance implements LoxCallable {
   final String name;
   private final Map<String, LoxFunction> methods;
   final LoxClass superclass;
 
-  LoxClass(String name, LoxClass superclass, Map<String, LoxFunction> methods) {
+  LoxClass(LoxClass metaclass, String name, LoxClass superclass, Map<String, LoxFunction> methods) {
+    super(metaclass);
     this.superclass = superclass;
     this.name = name;
     this.methods = methods;
