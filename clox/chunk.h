@@ -45,16 +45,24 @@ typedef enum {
 } OpCode;
 
 typedef struct {
+  int line;
+  int count;
+} LineStart;
+
+typedef struct {
   int count;
   int capacity;
   uint8_t *code;
-  int *lines;
+  int lineCount;
+  int lineCapacity;
+  LineStart *lines;
   ValueArray constants;
 } Chunk;
 
 void initChunk(Chunk *chunk);
 void freeChunk(Chunk *chunk);
 void writeChunk(Chunk *chunk, uint8_t byte, int line);
+int getLine(Chunk *chunk, int instructionIndex);
 int addConstant(Chunk *chunk, Value value);
 
 #endif

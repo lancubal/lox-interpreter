@@ -16,6 +16,46 @@ Hint: It’s not necessary for `getLine()` to be particularly efficient.
 Since it is called only when a runtime error occurs, it is well off the
 critical path where performance matters.
 
+#### Answer:
+
+##### Implementation Details:
+1. **Run-Length Encoding (RLE) Data Structure (`clox/chunk.h`)**:
+   Defined a `LineStart` struct and updated `Chunk` to store a dynamic array of `LineStart` entries instead of a flat parallel `int* lines` array:
+   ```c
+   typedef struct {
+     int line;
+     int count;
+   } LineStart;
+
+   typedef struct {
+     int count;
+     int capacity;
+     uint8_t *code;
+     int lineCount;
+     int lineCapacity;
+     LineStart *lines;
+     ValueArray constants;
+   } Chunk;
+   ```
+2. **Writing RLE Lines (`clox/chunk.c`)**:
+   In `writeChunk()`, when a bytecode byte is appended, we check if the new byte belongs to the same line as the previous byte (`chunk->lines[chunk->lineCount - 1].line == line`). If so, we simply increment the `count` of the last `LineStart` entry. Otherwise, we allocate and append a new `LineStart` entry.
+3. **Instruction Line Lookup (`clox/chunk.c`)**:
+   Implemented `getLine(Chunk* chunk, int instructionIndex)`:
+   ```c
+   int getLine(Chunk *chunk, int instructionIndex) {
+     int accumulated = 0;
+     for (int i = 0; i < chunk->lineCount; i++) {
+       accumulated += chunk->lines[i].count;
+       if (instructionIndex < accumulated) {
+         return chunk->lines[i].line;
+       }
+     }
+     return -1;
+   }
+   ```
+4. **Disassembler & VM Updates (`clox/debug.c` & `clox/vm.c`)**:
+   Updated `disassembleInstruction()` and VM error reporting to retrieve line numbers via `getLine(chunk, offset)`.
+
 ---
 
 ### 2.

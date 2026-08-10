@@ -40,7 +40,7 @@ static void runtimeError(const char *format, ...) {
     CallFrame *frame = &vm.frames[i];
     ObjFunction *function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
+    fprintf(stderr, "[line %d] in ", getLine(&function->chunk, (int)instruction));
     if (function->name == NULL) {
       fprintf(stderr, "script\n");
     } else {
