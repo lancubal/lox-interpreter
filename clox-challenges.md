@@ -83,6 +83,46 @@ for `OP_CONSTANT_LONG` instructions.
 Defining two instructions seems to be the best of both worlds. What
 sacrifices, if any, does it force on us?
 
+#### Answer:
+
+##### Implementation Details:
+1. **Opcode & Function Signature (`clox/chunk.h` & `clox/chunk.c`)**:
+   Added `OP_CONSTANT_LONG` to `OpCode` enum and implemented `writeConstant()`:
+   ```c
+   void writeConstant(Chunk *chunk, Value value, int line) {
+     int index = addConstant(chunk, value);
+     if (index < 256) {
+       writeChunk(chunk, OP_CONSTANT, line);
+       writeChunk(chunk, (uint8_t)index, line);
+     } else {
+       writeChunk(chunk, OP_CONSTANT_LONG, line);
+       writeChunk(chunk, (uint8_t)(index & 0xff), line);
+       writeChunk(chunk, (uint8_t)((index >> 8) & 0xff), line);
+       writeChunk(chunk, (uint8_t)((index >> 16) & 0xff), line);
+     }
+   }
+   ```
+2. **Disassembler (`clox/debug.c`)**:
+   Implemented `longConstantInstruction()`, which reconstructs the 24-bit operand from 3 little-endian bytes:
+   ```c
+   static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
+     uint32_t constant = chunk->code[offset + 1] |
+                         (chunk->code[offset + 2] << 8) |
+                         (chunk->code[offset + 3] << 16);
+     printf("%-16s %4d '", name, constant);
+     printValue(chunk->constants.values[constant]);
+     printf("'\n");
+     return offset + 4;
+   }
+   ```
+3. **VM Execution (`clox/vm.c`)**:
+   Added `READ_24BIT()` macro and handled `case OP_CONSTANT_LONG:` in the VM `run()` loop.
+
+##### Sacrifices and Trade-offs:
+1. **Opcode Slot Consumption**: Virtual machines use 1-byte opcodes (providing up to 256 unique instructions). Adding `OP_CONSTANT_LONG` uses an opcode slot that could otherwise be dedicated to another instruction.
+2. **Increased Compiler and VM Complexity**: Code paths throughout the compiler, disassembler, and interpreter loop must handle two variations of constant loading logic instead of one unified path.
+3. **Instruction Cache & Branch Prediction Overhead**: Enlarging the `switch (instruction)` statement in the core VM loop increases CPU instruction cache pressure and expands the branch target buffer/table size.
+
 ---
 
 ### 3.
