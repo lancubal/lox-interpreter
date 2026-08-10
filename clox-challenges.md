@@ -262,6 +262,43 @@ Given the above, do you think it makes sense to have both instructions?
 Why or why not? Are there any other redundant instructions you would
 consider including?
 
+#### Answer:
+
+##### 1. Bytecode without `OP_NEGATE`:
+Negating a value `x` without `OP_NEGATE` is performed as `0 - x`:
+```
+OP_CONSTANT 0  (4)
+OP_CONSTANT 1  (3)
+OP_CONSTANT 2  (0)
+OP_CONSTANT 3  (2)
+OP_SUBTRACT     (0 - 2 = -2)
+OP_MULTIPLY     (3 * -2 = -6)
+OP_SUBTRACT     (4 - -6 = 10)
+```
+
+##### 2. Bytecode without `OP_SUBTRACT`:
+Subtraction `a - b` without `OP_SUBTRACT` is performed as `a + (-b)`:
+```
+OP_CONSTANT 0  (4)
+OP_CONSTANT 1  (3)
+OP_CONSTANT 2  (2)
+OP_NEGATE       (-2)
+OP_MULTIPLY     (3 * -2 = -6)
+OP_NEGATE       (-(-6) = 6)
+OP_ADD          (4 + 6 = 10)
+```
+
+##### 3. Does it make sense to have both instructions?
+**Yes, absolutely.**
+- **Code Size and Locality**: Omitting `OP_NEGATE` forces the compiler to push a constant `0` and emit `OP_SUBTRACT` (3 instructions / bytes instead of 1).
+- **Execution Performance**: Subtraction and negation are among the most frequent arithmetic operations. Emulating one with the other introduces extra stack push/pop operations and VM instruction dispatch overhead.
+
+##### 4. Other Useful "Redundant" Instructions:
+- **`OP_INC` / `OP_DEC`**: Incrementing or decrementing a variable by 1 (e.g. `i = i + 1` in loops). A dedicated opcode avoids pushing constant `1` and executing `OP_ADD`.
+- **`OP_ZERO` / `OP_ONE`**: Direct loading of common integer constants `0` and `1` without consuming space in the constant table array.
+- **`OP_NOT_EQUAL` (`!=`)**: Replaces `OP_EQUAL` + `OP_NOT`.
+- **`OP_GREATER_EQUAL` (`>=`) / `OP_LESS_EQUAL` (`<=`)**: Replaces `OP_LESS` + `OP_NOT` or `OP_GREATER` + `OP_NOT`, accelerating loop condition evaluations.
+
 ---
 
 ### 3.
