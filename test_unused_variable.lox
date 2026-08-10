@@ -1,0 +1,8 @@
+// Test unused local variable detection
+fun test() {
+  var usedVar = "I am used";
+  var unusedVar = "I am never used";
+  print usedVar;
+}
+
+test();

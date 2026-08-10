@@ -9,9 +9,20 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
   private final Interpreter interpreter;
 
-  // Stack of scopes, where each scope is a map of variable names to a boolean
-  // indicating whether the variable has been defined.
-  private final Stack<Map<String, Boolean>> scopes = new Stack<>();
+  private static class Variable {
+    final Token name;
+    boolean state;
+    boolean isUsed;
+
+    Variable(Token name, boolean state) {
+      this.name = name;
+      this.state = state;
+      this.isUsed = false;
+    }
+  }
+
+  // Stack of scopes, where each scope is a map of variable names to a Variable state object.
+  private final Stack<Map<String, Variable>> scopes = new Stack<>();
   private FunctionType currentFunction = FunctionType.NONE;
 
   Resolver(Interpreter interpreter) {
@@ -66,11 +77,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     if (stmt.superclass != null) {
       beginScope();
-      scopes.peek().put("super", true);
+      scopes.peek().put("super", new Variable(new Token(TokenType.SUPER, "super", null, -1), true));
     }
 
     beginScope();
-    scopes.peek().put("this", true);
+    scopes.peek().put("this", new Variable(new Token(TokenType.THIS, "this", null, -1), true));
 
     for (Stmt.Function method : stmt.methods) {
       FunctionType declaration = FunctionType.METHOD;
@@ -137,8 +148,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     // Check if the variable is being accessed in its own initializer.
     // Declared but not yet defined variables are marked as false in the current
     // scope.
-    if (!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
-      Lox.error(expr.name, "Can't read local variable in its own initializer.");
+    if (!scopes.isEmpty()) {
+      Variable var = scopes.peek().get(expr.name.lexeme);
+      if (var != null && var.state == false) {
+        Lox.error(expr.name, "Can't read local variable in its own initializer.");
+      }
     }
 
     resolveLocal(expr, expr.name);
@@ -316,17 +330,23 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   }
 
   private void beginScope() {
-    scopes.push(new HashMap<String, Boolean>());
+    scopes.push(new HashMap<String, Variable>());
   }
 
   private void endScope() {
-    scopes.pop();
+    Map<String, Variable> scope = scopes.pop();
+    for (Map.Entry<String, Variable> entry : scope.entrySet()) {
+      Variable var = entry.getValue();
+      if (!var.isUsed && var.name != null && !entry.getKey().equals("this") && !entry.getKey().equals("super")) {
+        Lox.error(var.name, "Local variable '" + var.name.lexeme + "' is never used.");
+      }
+    }
   }
 
   private void declare(Token name) {
     if (scopes.isEmpty()) return;
 
-    Map<String, Boolean> scope = scopes.peek();
+    Map<String, Variable> scope = scopes.peek();
 
     // Collision check: if the variable name is already declared in the current
     // scope, report an error.
@@ -334,14 +354,19 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       Lox.error(name, "Already a variable with this name in this scope.");
     }
 
-    scope.put(name.lexeme, false);
+    scope.put(name.lexeme, new Variable(name, false));
   }
 
   // We set the variable to "defined" to mark it fully initialized and ready for
   // use.
   private void define(Token name) {
     if (scopes.isEmpty()) return;
-    scopes.peek().put(name.lexeme, true);
+    Variable var = scopes.peek().get(name.lexeme);
+    if (var != null) {
+      var.state = true;
+    } else {
+      scopes.peek().put(name.lexeme, new Variable(name, true));
+    }
   }
 
   // Find the variable in the nearest enclosing scope and tell the interpreter how
@@ -350,6 +375,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     for (int i = scopes.size() - 1; i >= 0; i--) {
       if (scopes.get(i).containsKey(name.lexeme)) {
         interpreter.resolve(expr, scopes.size() - 1 - i);
+        scopes.get(i).get(name.lexeme).isUsed = true;
         return;
       }
     }

@@ -792,6 +792,24 @@ Referencing a local variable inside its own initializer (`var a = a;`) is almost
 ### 3.
 Extend the resolver to report an error if a local variable is never used.
 
+#### Answer:
+
+##### Implementation Details:
+1. **Scope Tracking Class (`com/craftinginterpreters/lox/Resolver.java`)**:
+   Replaced `Stack<Map<String, Boolean>> scopes` with `Stack<Map<String, Variable>> scopes`, where `Variable` tracks:
+   - `Token name`: Token reference for reporting accurate line number errors.
+   - `boolean state`: Initialization state (`false` = declared, `true` = defined).
+   - `boolean isUsed`: Flag indicating whether the variable was accessed (`false` by default).
+
+2. **Marking Variable Usage**:
+   Inside `resolveLocal(expr, name)`, whenever a variable in a local scope is resolved, we set `scopes.get(i).get(name.lexeme).isUsed = true;`.
+
+3. **Reporting Unused Variables in `endScope()`**:
+   When exiting a scope in `endScope()`, we iterate over all `Variable` objects in the scope map being popped. If `!var.isUsed` (excluding special implicit tokens `"this"` and `"super"`), we invoke:
+   ```java
+   Lox.error(var.name, "Local variable '" + var.name.lexeme + "' is never used.");
+   ```
+
 ### 4.
 Our resolver calculates which environment the variable is found in, but
 it’s still looked up by name in that map. A more efficient environment
