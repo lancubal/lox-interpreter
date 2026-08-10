@@ -988,6 +988,61 @@ and nil. Later, clox will support user-defined classes. If we want to
 support keys that are instances of those classes, what kind of
 complexity does that add?
 
+#### Answer:
+
+##### 1. Generic Primitive Keys Implementation Details:
+
+- **Updated `Entry` Struct (`clox/table.h`)**:
+  Replaced hardcoded `ObjString *key` with generic `Value key`:
+  ```c
+  typedef struct {
+    Value key;
+    Value value;
+  } Entry;
+  ```
+- **Sentinel Values for Empty and Tombstone Slots (`clox/value.h`)**:
+  To support `nil` as a valid primitive key, we defined explicit sentinel representations `EMPTY_VAL` and `TOMBSTONE_VAL` for NaN-boxed and tagged union values:
+  ```c
+  #define TAG_EMPTY 4
+  #define TAG_TOMBSTONE 5
+  #define EMPTY_VAL ((Value)(uint64_t)(QNAN | TAG_EMPTY))
+  #define TOMBSTONE_VAL ((Value)(uint64_t)(QNAN | TAG_TOMBSTONE))
+  ```
+- **Value Hashing Function `hashValue()` (`clox/table.c`)**:
+  ```c
+  uint32_t hashValue(Value key) {
+  #ifdef NAN_BOXING
+    if (IS_OBJ(key)) {
+      Obj *obj = AS_OBJ(key);
+      if (obj->type == OBJ_STRING) return ((ObjString *)obj)->hash;
+      uint64_t bits = (uint64_t)(uintptr_t)obj;
+      bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+      return (uint32_t)bits;
+    }
+    uint64_t bits = key;
+    bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+    bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+    bits = (bits >> 32) ^ bits;
+    return (uint32_t)bits;
+  #endif
+  }
+  ```
+- **Equality Comparison**:
+  `findEntry()` uses `valuesEqual(entry->key, key)` to compare primitive keys (`bool`, `nil`, `number`, `ObjString`).
+
+##### 2. Complexity of Supporting User-Defined Class Instances as Keys:
+
+If users can use custom class instances (`class Point { ... }`) as keys:
+
+- **Identity-based Hashing (Pointer Equality)**:
+  - Hashes the raw memory pointer (`(uintptr_t)instance`). Two distinct instances with identical field values are treated as different keys.
+  - *Complexity*: Low ($O(1)$ lookup speed).
+
+- **Value-based Hashing & Custom Methods (`hash()` / `==` Overriding)**:
+  - **VM Re-entrancy & Execution Overhead**: Every hash table lookup (`tableGet`/`tableSet`) must invoke user Lox bytecode methods (`key.hash()` and `key == other`). Hash lookups are no longer fast C operations.
+  - **Garbage Collection Side Effects**: Invoking Lox bytecode inside an internal hash table lookup can trigger a GC cycle or allocate memory, potentially mutating or invalidating the table while searching.
+  - **Mutation Hazard**: If a user modifies an object's field after inserting it into a hash table, its hash code changes. The object becomes permanently lost/unreachable in the hash table bucket.
+
 ---
 
 ### 2.

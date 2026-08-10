@@ -3,10 +3,55 @@
 #include <sys/types.h>
 
 #include "memory.h"
+#include "object.h"
 #include "table.h"
 #include "value.h"
 
 #define TABLE_MAX_LOAD 0.75
+
+uint32_t hashValue(Value key) {
+#ifdef NAN_BOXING
+  if (IS_OBJ(key)) {
+    Obj *obj = AS_OBJ(key);
+    if (obj->type == OBJ_STRING) {
+      return ((ObjString *)obj)->hash;
+    }
+    uint64_t bits = (uint64_t)(uintptr_t)obj;
+    bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+    return (uint32_t)bits;
+  }
+  uint64_t bits = key;
+  bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+  bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+  bits = (bits >> 32) ^ bits;
+  return (uint32_t)bits;
+#else
+  switch (key.type) {
+  case VAL_BOOL:
+    return AS_BOOL(key) ? 2 : 3;
+  case VAL_NIL:
+    return 0;
+  case VAL_NUMBER: {
+    double num = AS_NUMBER(key);
+    uint64_t bits;
+    memcpy(&bits, &num, sizeof(double));
+    bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+    return (uint32_t)bits;
+  }
+  case VAL_OBJ: {
+    Obj *obj = AS_OBJ(key);
+    if (obj->type == OBJ_STRING) {
+      return ((ObjString *)obj)->hash;
+    }
+    uint64_t bits = (uint64_t)(uintptr_t)obj;
+    bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
+    return (uint32_t)bits;
+  }
+  default:
+    return 0;
+  }
+#endif
+}
 
 void initTable(Table *table) {
   table->count = 0;
@@ -19,24 +64,19 @@ void freeTable(Table *table) {
   initTable(table);
 }
 
-static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
-  uint32_t index = key->hash & (capacity - 1);
+static Entry *findEntry(Entry *entries, int capacity, Value key) {
+  uint32_t index = hashValue(key) & (capacity - 1);
   Entry *tombstone = NULL;
 
   for (;;) {
     Entry *entry = &entries[index];
 
-    if (entry->key == NULL) {
-      if (IS_NIL(entry->value)) {
-        // Empty entry
-        return tombstone != NULL ? tombstone : entry;
-      } else {
-        // Found a tombstone
-        if (tombstone == NULL)
-          tombstone = entry;
-      }
-    } else if (entry->key == key) {
-      // Found the key
+    if (IS_EMPTY(entry->key)) {
+      return tombstone != NULL ? tombstone : entry;
+    } else if (IS_TOMBSTONE(entry->key)) {
+      if (tombstone == NULL)
+        tombstone = entry;
+    } else if (valuesEqual(entry->key, key)) {
       return entry;
     }
 
@@ -44,12 +84,12 @@ static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
   }
 }
 
-bool tableGet(Table *table, ObjString *key, Value *value) {
+bool tableGet(Table *table, Value key, Value *value) {
   if (table->count == 0)
     return false;
 
   Entry *entry = findEntry(table->entries, table->capacity, key);
-  if (entry->key == NULL)
+  if (IS_EMPTY(entry->key) || IS_TOMBSTONE(entry->key))
     return false;
 
   *value = entry->value;
@@ -59,7 +99,7 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
 static void adjustCapacity(Table *table, int capacity) {
   Entry *entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
-    entries[i].key = NULL;
+    entries[i].key = EMPTY_VAL;
     entries[i].value = NIL_VAL;
   }
 
@@ -67,7 +107,7 @@ static void adjustCapacity(Table *table, int capacity) {
 
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
-    if (entry->key == NULL)
+    if (IS_EMPTY(entry->key) || IS_TOMBSTONE(entry->key))
       continue;
 
     Entry *dest = findEntry(entries, capacity, entry->key);
@@ -82,14 +122,14 @@ static void adjustCapacity(Table *table, int capacity) {
   table->capacity = capacity;
 }
 
-bool tableSet(Table *table, ObjString *key, Value value) {
+bool tableSet(Table *table, Value key, Value value) {
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
   }
   Entry *entry = findEntry(table->entries, table->capacity, key);
-  bool isNewKey = entry->key == NULL;
-  if (isNewKey && IS_NIL(entry->value))
+  bool isNewKey = IS_EMPTY(entry->key) || IS_TOMBSTONE(entry->key);
+  if (isNewKey && IS_EMPTY(entry->key))
     table->count++;
 
   entry->key = key;
@@ -97,25 +137,23 @@ bool tableSet(Table *table, ObjString *key, Value value) {
   return isNewKey;
 }
 
-bool tableDelete(Table *table, ObjString *key) {
+bool tableDelete(Table *table, Value key) {
   if (table->count == 0)
     return false;
 
-  // Find entry
   Entry *entry = findEntry(table->entries, table->capacity, key);
-  if (entry->key == NULL)
+  if (IS_EMPTY(entry->key) || IS_TOMBSTONE(entry->key))
     return false;
 
-  // Place a tombstone
-  entry->key = NULL;
-  entry->value = BOOL_VAL(true);
+  entry->key = TOMBSTONE_VAL;
+  entry->value = NIL_VAL;
   return true;
 }
 
 void tableAddAll(Table *from, Table *to) {
   for (int i = 0; i < from->capacity; i++) {
     Entry *entry = &from->entries[i];
-    if (entry->key != NULL) {
+    if (!IS_EMPTY(entry->key) && !IS_TOMBSTONE(entry->key)) {
       tableSet(to, entry->key, entry->value);
     }
   }
@@ -130,14 +168,17 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
 
   for (;;) {
     Entry *entry = &table->entries[index];
-    if (entry->key == NULL) {
-      // Stop if we find an empty non-tombstone entry
-      if (IS_NIL(entry->value))
-        return NULL;
-    } else if (entry->key->length == length && entry->key->hash == hash &&
-               memcmp(entry->key->chars, chars, length) == 0) {
-      // Found
-      return entry->key;
+    if (IS_EMPTY(entry->key)) {
+      return NULL;
+    } else if (!IS_TOMBSTONE(entry->key) && IS_OBJ(entry->key)) {
+      Obj *obj = AS_OBJ(entry->key);
+      if (obj->type == OBJ_STRING) {
+        ObjString *string = (ObjString *)obj;
+        if (string->length == length && string->hash == hash &&
+            memcmp(string->chars, chars, length) == 0) {
+          return string;
+        }
+      }
     }
 
     index = (index + 1) & (table->capacity - 1);
@@ -147,7 +188,8 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
 void tableRemoveWhite(Table *table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
-    if (entry->key != NULL && !entry->key->obj.isMarked) {
+    if (!IS_EMPTY(entry->key) && !IS_TOMBSTONE(entry->key) &&
+        IS_OBJ(entry->key) && !AS_OBJ(entry->key)->isMarked) {
       tableDelete(table, entry->key);
     }
   }
@@ -156,7 +198,9 @@ void tableRemoveWhite(Table *table) {
 void markTable(Table *table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
-    markObject((Obj *)entry->key);
-    markValue(entry->value);
+    if (!IS_EMPTY(entry->key) && !IS_TOMBSTONE(entry->key)) {
+      markValue(entry->key);
+      markValue(entry->value);
+    }
   }
 }

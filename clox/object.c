@@ -89,7 +89,7 @@ static ObjString *allocateString(const char *chars, int length, uint32_t hash,
   string->chars = chars;
 
   push(OBJ_VAL(string));
-  tableSet(&vm.strings, string, NIL_VAL);
+  tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
   pop();
 
   return string;
