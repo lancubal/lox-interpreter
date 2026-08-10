@@ -579,6 +579,63 @@ the parser functions stored in the table. Take this (strange) expression:
 Write a trace of how those functions are called. Show the order they
 are called, which calls which, and the arguments passed to them.
 
+#### Answer:
+
+##### Precedence Reference Levels:
+- `PREC_ASSIGNMENT` (1)
+- `PREC_TERM` (6) (`+`, `-`)
+- `PREC_FACTOR` (7) (`*`, `/`)
+- `PREC_UNARY` (8) (`!`, `-`)
+
+##### Function Call Trace for `(-1 + 2) * 3 - -4`:
+
+```
+expression()
+└── parsePrecedence(PREC_ASSIGNMENT = 1)
+    ├── [sees TOKEN_LEFT_PAREN] -> calls prefix rule: grouping(canAssign = true)
+    │   └── expression()
+    │       └── parsePrecedence(PREC_ASSIGNMENT = 1)
+    │           ├── [sees TOKEN_MINUS] -> calls prefix rule: unary(canAssign = true)
+    │           │   └── parsePrecedence(PREC_UNARY = 8)
+    │           │       ├── [sees TOKEN_NUMBER "1"] -> calls prefix rule: number(canAssign = false)
+    │           │       │   └── emits OP_CONSTANT 1
+    │           │       └── [returns to unary(), emits OP_NEGATE]
+    │           ├── [sees TOKEN_PLUS] -> calls infix rule: binary(canAssign = true)
+    │           │   └── parsePrecedence(PREC_TERM + 1 = PREC_FACTOR = 7)
+    │           │       ├── [sees TOKEN_NUMBER "2"] -> calls prefix rule: number(canAssign = false)
+    │           │       │   └── emits OP_CONSTANT 2
+    │           │       └── [returns to binary(), emits OP_ADD]
+    │           └── [sees TOKEN_RIGHT_PAREN, loop terminates]
+    │   └── grouping() consumes TOKEN_RIGHT_PAREN
+    ├── [sees TOKEN_STAR] -> calls infix rule: binary(canAssign = true)
+    │   └── parsePrecedence(PREC_FACTOR + 1 = PREC_UNARY = 8)
+    │       ├── [sees TOKEN_NUMBER "3"] -> calls prefix rule: number(canAssign = false)
+    │       │   └── emits OP_CONSTANT 3
+    │       └── [returns to binary(), emits OP_MULTIPLY]
+    ├── [sees TOKEN_MINUS] -> calls infix rule: binary(canAssign = true)
+    │   └── parsePrecedence(PREC_TERM + 1 = PREC_FACTOR = 7)
+    │       ├── [sees TOKEN_MINUS] -> calls prefix rule: unary(canAssign = true)
+    │       │   └── parsePrecedence(PREC_UNARY = 8)
+    │       │       ├── [sees TOKEN_NUMBER "4"] -> calls prefix rule: number(canAssign = false)
+    │       │       │   └── emits OP_CONSTANT 4
+    │       │       └── [returns to unary(), emits OP_NEGATE]
+    │       └── [returns to binary(), emits OP_SUBTRACT]
+    └── [sees TOKEN_EOF, top-level parsePrecedence terminates]
+```
+
+##### Bytecode Emitted Sequence:
+```
+OP_CONSTANT 1  (1)
+OP_NEGATE      (-1)
+OP_CONSTANT 2  (2)
+OP_ADD         (-1 + 2 = 1)
+OP_CONSTANT 3  (3)
+OP_MULTIPLY    (1 * 3 = 3)
+OP_CONSTANT 4  (4)
+OP_NEGATE      (-4)
+OP_SUBTRACT    (3 - -4 = 7)
+```
+
 ---
 
 ### 2.
