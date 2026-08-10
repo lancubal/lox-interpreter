@@ -18,7 +18,8 @@ typedef struct {
 typedef struct {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
-  Value stack[STACK_MAX];
+  Value *stack;
+  int stackCapacity;
   Value *stackTop;
   Table globals;
   Table strings;

@@ -60,6 +60,8 @@ static void defineNative(const char *name, NativeFn function) {
 
 void initVM() {
   initCustomHeap();
+  vm.stack = NULL;
+  vm.stackCapacity = 0;
   resetStack();
   vm.objects = NULL;
   vm.bytesAllocated = 0;
@@ -83,10 +85,30 @@ void freeVM() {
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
+  FREE_ARRAY(Value, vm.stack, vm.stackCapacity);
   freeCustomHeap();
 }
 
 void push(Value value) {
+  int currentCount = (int)(vm.stackTop - vm.stack);
+  if (currentCount >= vm.stackCapacity) {
+    int oldCapacity = vm.stackCapacity;
+    vm.stackCapacity = GROW_CAPACITY(oldCapacity);
+
+    int stackTopOffset = (int)(vm.stackTop - vm.stack);
+    int frameSlotOffsets[FRAMES_MAX];
+    for (int i = 0; i < vm.frameCount; i++) {
+      frameSlotOffsets[i] = (int)(vm.frames[i].slots - vm.stack);
+    }
+
+    vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
+
+    vm.stackTop = vm.stack + stackTopOffset;
+    for (int i = 0; i < vm.frameCount; i++) {
+      vm.frames[i].slots = vm.stack + frameSlotOffsets[i];
+    }
+  }
+
   *vm.stackTop = value;
   vm.stackTop++;
 }

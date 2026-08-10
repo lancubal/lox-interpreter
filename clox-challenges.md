@@ -308,6 +308,48 @@ our interpreter to crash or go into undefined behavior. Avoid that by
 dynamically growing the stack as needed.
 What are the costs and benefits of doing so?
 
+#### Answer:
+
+##### Implementation Details:
+1. **Dynamic Stack Declaration (`clox/vm.h`)**:
+   Replaced fixed array `Value stack[STACK_MAX]` with a dynamic pointer `Value *stack` and `int stackCapacity`.
+2. **Growing and Pointer Re-basing (`clox/vm.c`)**:
+   In `push()`, before pushing a new value, we verify if `stackTop - stack >= stackCapacity`. If full, we grow `stackCapacity` using `GROW_ARRAY()`.
+   **Critical Pointer Maintenance**: Because `realloc()` may relocate `vm.stack` in memory, we record relative offset distances (`stackTopOffset` and `vm.frames[i].slots` offsets) before reallocation and restore them afterwards to prevent dangling pointers:
+   ```c
+   void push(Value value) {
+     int currentCount = (int)(vm.stackTop - vm.stack);
+     if (currentCount >= vm.stackCapacity) {
+       int oldCapacity = vm.stackCapacity;
+       vm.stackCapacity = GROW_CAPACITY(oldCapacity);
+
+       int stackTopOffset = (int)(vm.stackTop - vm.stack);
+       int frameSlotOffsets[FRAMES_MAX];
+       for (int i = 0; i < vm.frameCount; i++) {
+         frameSlotOffsets[i] = (int)(vm.frames[i].slots - vm.stack);
+       }
+
+       vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
+
+       vm.stackTop = vm.stack + stackTopOffset;
+       for (int i = 0; i < vm.frameCount; i++) {
+         vm.frames[i].slots = vm.stack + frameSlotOffsets[i];
+       }
+     }
+
+     *vm.stackTop = value;
+     vm.stackTop++;
+   }
+   ```
+
+##### Benefits:
+- **Memory Safety & Robustness**: Eliminates stack overflow crashes, undefined behavior, and segmentation faults when running heavily nested operations or recursive functions.
+- **Resource Efficiency**: Programs start with a minimal memory footprint and scale dynamically as needed.
+
+##### Costs:
+- **`push()` Check Overhead**: Every `push()` invocation incurs a capacity comparison check.
+- **Reallocation Complexity**: Reallocating the stack array requires re-basing all pointers (`vm.stackTop` and `CallFrame.slots`) that point into the stack buffer.
+
 ---
 
 ### 4.
