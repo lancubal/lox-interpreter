@@ -7,14 +7,130 @@
 #include "vm.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef DEBUG_LOG_GC
 #include "debug.h"
-#include <stdio.h>
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
+#define CUSTOM_HEAP_SIZE (16 * 1024 * 1024)
+
+typedef struct BlockHeader {
+  size_t size;
+  bool isFree;
+  struct BlockHeader *next;
+} BlockHeader;
+
+static uint8_t *customHeapBuffer = NULL;
+static BlockHeader *heapStart = NULL;
+
+void initCustomHeap() {
+  customHeapBuffer = (uint8_t *)malloc(CUSTOM_HEAP_SIZE);
+  if (customHeapBuffer == NULL) {
+    fprintf(stderr, "Failed to allocate custom heap.\n");
+    exit(1);
+  }
+  heapStart = (BlockHeader *)customHeapBuffer;
+  heapStart->size = CUSTOM_HEAP_SIZE - sizeof(BlockHeader);
+  heapStart->isFree = true;
+  heapStart->next = NULL;
+}
+
+void freeCustomHeap() {
+  if (customHeapBuffer != NULL) {
+    free(customHeapBuffer);
+    customHeapBuffer = NULL;
+    heapStart = NULL;
+  }
+}
+
+static void coalesceHeap() {
+  BlockHeader *curr = heapStart;
+  while (curr != NULL && curr->next != NULL) {
+    if (curr->isFree && curr->next->isFree) {
+      curr->size += sizeof(BlockHeader) + curr->next->size;
+      curr->next = curr->next->next;
+    } else {
+      curr = curr->next;
+    }
+  }
+}
+
+static void *customAlloc(size_t size) {
+  size = (size + 7) & ~7;
+  BlockHeader *curr = heapStart;
+  while (curr != NULL) {
+    if (curr->isFree && curr->size >= size) {
+      if (curr->size >= size + sizeof(BlockHeader) + 16) {
+        BlockHeader *nextBlock = (BlockHeader *)((uint8_t *)(curr + 1) + size);
+        nextBlock->size = curr->size - size - sizeof(BlockHeader);
+        nextBlock->isFree = true;
+        nextBlock->next = curr->next;
+
+        curr->size = size;
+        curr->next = nextBlock;
+      }
+      curr->isFree = false;
+      return (void *)(curr + 1);
+    }
+    curr = curr->next;
+  }
+
+  coalesceHeap();
+  curr = heapStart;
+  while (curr != NULL) {
+    if (curr->isFree && curr->size >= size) {
+      if (curr->size >= size + sizeof(BlockHeader) + 16) {
+        BlockHeader *nextBlock = (BlockHeader *)((uint8_t *)(curr + 1) + size);
+        nextBlock->size = curr->size - size - sizeof(BlockHeader);
+        nextBlock->isFree = true;
+        nextBlock->next = curr->next;
+
+        curr->size = size;
+        curr->next = nextBlock;
+      }
+      curr->isFree = false;
+      return (void *)(curr + 1);
+    }
+    curr = curr->next;
+  }
+
+  fprintf(stderr, "Custom heap out of memory!\n");
+  exit(1);
+}
+
+static void customFree(void *ptr) {
+  if (ptr == NULL) return;
+  BlockHeader *block = ((BlockHeader *)ptr) - 1;
+  block->isFree = true;
+  coalesceHeap();
+}
+
+static void *customRealloc(void *ptr, size_t oldSize, size_t newSize) {
+  if (ptr == NULL) {
+    return customAlloc(newSize);
+  }
+  if (newSize == 0) {
+    customFree(ptr);
+    return NULL;
+  }
+
+  BlockHeader *block = ((BlockHeader *)ptr) - 1;
+  if (block->size >= newSize) {
+    return ptr;
+  }
+
+  void *newPtr = customAlloc(newSize);
+  if (newPtr != NULL) {
+    size_t copySize = oldSize < newSize ? oldSize : newSize;
+    memcpy(newPtr, ptr, copySize);
+    customFree(ptr);
+  }
+  return newPtr;
+}
 
 void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
   vm.bytesAllocated += newSize - oldSize;
@@ -27,11 +143,11 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
     }
   }
   if (newSize == 0) {
-    free(pointer);
+    customFree(pointer);
     return NULL;
   }
 
-  void *result = realloc(pointer, newSize);
+  void *result = customRealloc(pointer, oldSize, newSize);
   if (result == NULL)
     exit(1);
   return result;
@@ -50,9 +166,10 @@ void markObject(Obj *object) {
 #endif
   object->isMarked = true;
   if (vm.grayCapacity < vm.grayCount + 1) {
+    int oldCap = vm.grayCapacity;
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
     vm.grayStack =
-        (Obj **)realloc(vm.grayStack, sizeof(Obj *) * vm.grayCapacity);
+        (Obj **)customRealloc(vm.grayStack, sizeof(Obj *) * oldCap, sizeof(Obj *) * vm.grayCapacity);
 
     if (vm.grayStack == NULL)
       exit(1);
@@ -246,5 +363,5 @@ void freeObjects() {
     object = next;
   }
 
-  free(vm.stack);
+  customFree(vm.stack);
 }

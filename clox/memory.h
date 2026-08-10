@@ -18,6 +18,8 @@
   (type *)reallocate(pointer, sizeof(type) * (oldCount),                       \
                      sizeof(type) * (newCount))
 
+void initCustomHeap();
+void freeCustomHeap();
 void *reallocate(void *pointer, size_t oldSize, size_t newSize);
 void markObject(Obj *object);
 void markValue(Value value);

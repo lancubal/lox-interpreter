@@ -59,6 +59,7 @@ static void defineNative(const char *name, NativeFn function) {
 }
 
 void initVM() {
+  initCustomHeap();
   resetStack();
   vm.objects = NULL;
   vm.bytesAllocated = 0;
@@ -82,6 +83,7 @@ void freeVM() {
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
+  freeCustomHeap();
 }
 
 void push(Value value) {

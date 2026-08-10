@@ -139,3 +139,52 @@ beginning of the interpreter’s execution, to allocate a single big block
 of memory, which your `reallocate()` function has access to. It
 parcels out blobs of memory from that single region, your own
 personal heap. It’s your job to define how it does that.
+
+#### Answer:
+
+##### Part 1: How Open Source `malloc()` / `free()` Implementations Work (`dlmalloc`, `ptmalloc`, `jemalloc`, `tcmalloc`)
+
+1. **Tracking Allocated vs Free Memory**:
+   - **Boundary Tags and Headers**: Allocators like `dlmalloc` and `ptmalloc` prepend a hidden header (e.g. 8–16 bytes) before each allocated chunk. The header stores the total chunk size and flags (e.g., `INUSE_BIT`). Adjacent physical chunks use boundary tags so a freed chunk can inspect its left and right neighbors instantly.
+   - **Size-Segregated Arenas & Slab Pages (`jemalloc` / `tcmalloc`)**: Instead of placing headers on small individual objects, memory is carved into fixed-size pages (slabs) dedicated to uniform object sizes (e.g., 16B, 32B, 64B slabs). Allocations use bitmasks on the slab page header, eliminating per-object header overhead.
+
+2. **Allocating Memory (`malloc`)**:
+   - **Fast Path**: Look up the requested size in a segregated array of size bins or thread-local caches (`tcache` in `jemalloc`/`tcmalloc`). If a free block exists in that bin, pop it from the free list in $O(1)$ constant time without lock contention.
+   - **Slow Path**: If the bin is empty, request a new memory arena/page from the operating system via `mmap()` or `sbrk()`, split off the requested size, and insert the remainder into the appropriate free bin.
+
+3. **Freeing Memory (`free`)**:
+   - Given a pointer `ptr`, compute the header location via pointer arithmetic (`((Header*)ptr) - 1`).
+   - Clear the in-use flag (or clear the bit in the slab bitmap).
+   - **Coalescing**: Inspect adjacent physical neighbors. If a neighbor is also free, merge them into a single larger free block to prevent fragmentation.
+   - Return the block to the corresponding size bin or thread-local cache.
+
+4. **Efficiency Optimizations**:
+   - **Thread-Local Caching (`tcmalloc`/`jemalloc`)**: Thread-private allocation pools avoid multi-threading mutex locks on hot allocation paths.
+   - **Binning / Segregated Free Lists**: Speeds up free block discovery to $O(1)$ array lookup rather than searching long linked lists.
+
+5. **Handling Fragmentation**:
+   - **Internal Fragmentation**: Wasted padding inside blocks is minimized by using closely spaced size classes.
+   - **External Fragmentation**: Solved via immediate/deferred **coalescing** of adjacent free blocks and returning unused pages back to the OS via `madvise(MADV_DONTNEED)` or `munmap()`.
+
+---
+
+##### Part 2: Hardcore Mode Implementation (`clox/memory.c`)
+
+We implemented **Hardcore Mode** by building a custom memory pool allocator in `clox/memory.c`:
+
+1. **Heap Initialization (`initCustomHeap()`)**:
+   Calls `malloc()` **only once** during `initVM()` to reserve a single contiguous 16 MB heap buffer (`CUSTOM_HEAP_SIZE = 16 * 1024 * 1024`).
+2. **Block Header Structure**:
+   ```c
+   typedef struct BlockHeader {
+     size_t size;
+     bool isFree;
+     struct BlockHeader *next;
+   } BlockHeader;
+   ```
+3. **Allocation & Splitting (`customAlloc()`)**:
+   Searches `heapStart` for a free block using First-Fit. If `block->size >= requested_size + sizeof(BlockHeader) + 16`, it splits the block, creating a new remainder free block.
+4. **Freeing & Coalescing (`customFree()`)**:
+   Marks `block->isFree = true` and traverses adjacent blocks to merge (`coalesceHeap()`) neighboring free blocks into larger contiguous regions.
+5. **Runtime Independence**:
+   `clox` executes with zero runtime calls to standard C `malloc()`, `realloc()`, or `free()`. All dynamic memory management is performed internally by `reallocate()` within our pre-allocated 16 MB heap.
