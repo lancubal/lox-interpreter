@@ -784,3 +784,32 @@ Conversely, we can improve the speed of our bytecode VM by adding
 more specific instructions that correspond to higher-level operations.
 What instructions would you define to speed up the kind of user code we
 added support for in this chapter?
+
+#### Answer:
+
+To maximize the execution speed of our bytecode VM, we can introduce specialized, higher-level opcodes that eliminate instruction dispatch cycles, avoid temporary stack pushes, and skip runtime type checks:
+
+##### 1. Fused Comparison Operators:
+- **`OP_NOT_EQUAL` (`!=`)**: Replaces `OP_EQUAL` + `OP_NOT`.
+- **`OP_GREATER_EQUAL` (`>=`)**: Replaces `OP_LESS` + `OP_NOT`.
+- **`OP_LESS_EQUAL` (`<=`)**: Replaces `OP_GREATER` + `OP_NOT`.
+- **Performance Impact**: Reduces bytecode size by 50% for these comparisons and saves one complete VM instruction fetch/decode cycle per evaluation.
+
+##### 2. Immediate / Constant-Inlined Operations:
+- **`OP_ADD_IMMEDIATE` (e.g. `x + 1`)**: Takes an immediate integer operand (e.g. 1 byte) and adds it directly to the top of the stack without pushing a constant or accessing the constant table.
+- **`OP_INCREMENT` / `OP_DECREMENT` (`++` / `--`)**: Directly mutates local variable slots in-place, dramatically accelerating loop counter updates (`for (var i = 0; i < N; i = i + 1)`).
+
+##### 3. Fused Comparison Jump Instructions (Branch Fusing):
+- **`OP_JUMP_IF_NOT_EQUAL`**, **`OP_JUMP_IF_LESS`**, **`OP_JUMP_IF_GREATER`**:
+  In conditional statements and loops (`if (a > b)` or `while (i < 100)`), the standard VM emits:
+  `OP_GREATER` → `OP_JUMP_IF_FALSE` (offset).
+  Fusing these into a single `OP_JUMP_IF_NOT_GREATER` opcode:
+  1. Compares the two operands on the stack.
+  2. Jumps immediately if false.
+  3. Avoids pushing and popping an intermediate `BoolValue` object onto the stack.
+
+##### 4. Type-Specialized Arithmetic and String Operations:
+- **`OP_ADD_NUM` vs `OP_CONCAT_STRING`**: Currently `OP_ADD` checks at runtime whether operands are numbers (`double`) or strings (`ObjString*`). Adding type-specialized opcodes allows the compiler (when operand types are known) to emit `OP_ADD_NUM` (pure double addition without type branches) or `OP_CONCAT_STRING` (pure string concatenation).
+- **`OP_EQUAL_NUM` / `OP_EQUAL_STRING` / `OP_EQUAL_BOOL`**: Fast-path equality comparisons that skip generic `Value` tag checking.
+
+---
