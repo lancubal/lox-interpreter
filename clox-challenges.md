@@ -1129,7 +1129,7 @@ To validate the performance characteristics of our `clox` hash table implementat
 
 1. **Benchmark 1: Sequential Insertion & Growth (`benchSequentialInserts`)**:
    - Inserts 10,000 unique numeric keys into an initially empty table, then queries all 10,000 keys.
-   - *Rationale*: Measures array reallocation overhead (`adjustCapacity`), capacity growth ($8 \rightarrow 16 \rightarrow \dots \rightarrow 16,384$), and average probe length during table scaling.
+   - *Rationale*: Measures array reallocation overhead (`adjustCapacity`), capacity growth (8 → 16 → ... → 16,384), and average probe length during table scaling.
 2. **Benchmark 2: Read-Heavy Workload (`benchReadHeavyWorkload`)**:
    - Performs 100,000 lookup operations on a table populated with 5,000 entries (50% hit rate).
    - *Rationale*: Models standard VM runtime access patterns (such as global variable resolution and class property lookups), where reads outnumber writes by orders of magnitude.
