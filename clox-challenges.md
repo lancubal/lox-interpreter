@@ -1271,3 +1271,40 @@ defined, no runtime error will occur because it’s never used either.
 We could report mistakes like this as compile errors, at least when
 running from a script. Do you think we should? Justify your answer.
 What do other scripting languages you know do?
+
+#### Answer:
+
+##### 1. How Other Scripting Languages Handle Unknown Globals:
+
+- **JavaScript**:
+  - Compiling an uncalled function referencing an undeclared global (`function foo() { console.log(oops); }`) succeeds with **zero compile errors**.
+  - A `ReferenceError: oops is not defined` is thrown only at **runtime when `foo()` is executed**.
+  - Static analysis tools (ESLint `no-undef`, TypeScript) catch undeclared variables at build time.
+- **Python**:
+  - Compiles functions to bytecode without checking if global names exist at compile time.
+  - Raises `NameError: name 'oops' is not defined` only at **runtime if that code path is executed**.
+  - Static linters (`mypy`, `flake8`, `pylint`) catch typos statically.
+- **Lua**:
+  - Referencing an undeclared global variable evaluates to `nil` at runtime. No compile or runtime error occurs!
+- **Ruby**:
+  - Accessing an uninitialized global variable (`$oops`) evaluates to `nil` at runtime without raising an exception.
+
+##### 2. Trade-off Analysis for Static Global Scope Checking in Lox:
+
+###### Arguments FOR Static Compile Errors in Script Mode:
+1. **Early Error Detection**: Catches typos (e.g., `oops` vs `ooops`) immediately before execution instead of waiting for a rare runtime code path to fail.
+2. **Full AST Availability**: When compiling a script file, the parser inspects the entire file before running code.
+
+###### Arguments AGAINST Static Compile Errors in Script Mode:
+1. **Semantic Inconsistency**: Creates a confusing semantic split between REPL mode (where late binding is required) and Script mode. Code that works in the REPL might fail to compile in a script.
+2. **Host Environment & Native Bindings**: Languages like Lox often have native functions or host variables injected into the global table at runtime (e.g. `clock()`, foreign function interfaces, or host embeds). A static compiler check would falsely report these as compile errors.
+3. **Multi-File Scripts & Modules**: In programs split across multiple files, File A might reference a global defined in File B loaded at runtime.
+
+##### 3. Conclusion & Recommendation:
+
+**No, the core Lox interpreter compiler should NOT report compile errors for undeclared globals in script mode**.
+
+- The **language core** should remain dynamic with consistent late-binding semantics across both REPL and Script execution modes.
+- Catching typos and undeclared identifiers should be left to external **Linters, Static Analyzers, or IDE Language Servers**, providing safety tools without constraining the language runtime's dynamic flexibility.
+
+---
