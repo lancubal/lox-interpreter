@@ -1213,6 +1213,40 @@ used is pretty slow, even with a good hash table. Can you come up
 with a more efficient way to store and access global variables without
 changing the semantics?
 
+#### Answer:
+
+To eliminate the runtime performance overhead of performing hash table lookups (`tableGet` / `tableSet`) on every global variable access, we can implement two alternative architectural techniques while fully preserving Lox's dynamic semantics (such as late binding and runtime declaration):
+
+##### Solution 1: Global Symbol Array (Index-Based Direct Access)
+
+- **Architecture**:
+  1. **Global Symbol Table**: Instead of an unordered hash table, `vm.globals` is stored as a flat, dynamically-resized `ValueArray globals` indexed by integer slots (`0, 1, 2, ...`).
+  2. **Compiler Symbol Map**: The compiler maintains a global mapping of variable name strings to integer slot indices. The first time a global variable `x` is declared or referenced anywhere in the program, it is assigned a unique index (e.g. `index = 0`).
+  3. **Bytecode Opcodes**:
+     Replace `OP_GET_GLOBAL <name_string_index>` with `OP_GET_GLOBAL_INDEX <slot_index>`.
+  4. **Runtime Execution (`vm.c`)**:
+     Reading `x` becomes `Value val = vm.globals.values[slot_index];`.
+     - *Undefined Check*: Unallocated slots contain an `UNINITIALIZED_VAL` sentinel. If `vm.globals.values[slot_index] == UNINITIALIZED_VAL`, the VM raises a runtime error: `"Undefined variable 'x'"`.
+- **Performance**: Access time drops from an $O(1)$ hash table probe to a single $O(1)$ direct C array indexing operation!
+
+##### Solution 2: Inline Caching (IC)
+
+- **Architecture**:
+  1. **Cached Instruction Bytecode**: Modify `OP_GET_GLOBAL` to accept two operands: `<name_constant_index> <cached_slot_index>`.
+  2. **First-Execution Fast-Path Patching**:
+     - On first execution, the VM performs the normal hash table lookup `tableGet(&vm.globals, name, &value)`.
+     - It caches the entry pointer or slot index directly into the instruction's `<cached_slot_index>` operand.
+  3. **Subsequent Executions**: On subsequent iterations (e.g. inside tight loops), the VM reads directly from `<cached_slot_index>` without touching the hash table.
+- **Performance**: Achieves near-zero overhead inside loops while retaining a hash table backing store for dynamic REPL environments.
+
+##### Comparison Matrix:
+
+| Strategy | Lookup Overhead | Memory Footprint | REPL & Late-Binding Support |
+| :--- | :--- | :--- | :--- |
+| **Standard `clox` (Hash Table)** | Hash Probe & Key Check | Moderate (Table Buckets) | 100% |
+| **Global Symbol Array** | Single Array Index ($O(1)$) | Very Low (Flat Array) | 100% |
+| **Inline Caching (IC)** | Direct Pointer Dereference | Low + Small IC Payload | 100% (De-optimizes on redefinition) |
+
 ---
 
 ### 3.
