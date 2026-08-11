@@ -1387,9 +1387,68 @@ treats `let` as single-assignment and uses `var` for assignable variables.
 Scala and Kotlin use `val` and `var`.
 
 Pick a keyword for a single-assignment variable form to add to Lox.
-Justify your choice, then implement it. An attempt to assign to a
 variable declared using your new keyword should cause a compile
 error.
+
+#### Answer:
+
+##### 1. Keyword Choice: `const`
+
+##### Justification:
+- **Universal Developer Familiarity**: `const` is the standard, most recognizable keyword for single-assignment immutable bindings across JavaScript, C, C++, TypeScript, Rust, and Go.
+- **Natural Symmetry**: In Lox, mutable variables are declared with `var`. Pairings of `var` and `const` follow established C-family/JavaScript syntax expectations.
+
+##### 2. Implementation Details:
+
+1. **Scanner (`clox/scanner.h` & `clox/scanner.c`)**:
+   - Added `TOKEN_CONST` to `TokenType`.
+   - Updated `identifierType()` trie to recognize `"const"`:
+     ```c
+     case 'c':
+       if (scanner.current - scanner.start > 1) {
+         switch (scanner.start[1]) {
+         case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
+         case 'o': return checkKeyword(2, 3, "nst", TOKEN_CONST);
+         }
+       }
+       break;
+     ```
+2. **Compiler Local Struct (`clox/compiler.c`)**:
+   - Added `bool isConst` flag to `struct Local`:
+     ```c
+     typedef struct {
+       Token name;
+       int depth;
+       bool isCaptured;
+       bool isConst; // Single-assignment flag
+     } Local;
+     ```
+3. **Parsing `const` Declarations (`clox/compiler.c`)**:
+   - Added `constDeclaration()` requiring an initializer expression:
+     ```c
+     static void constDeclaration() {
+       uint8_t global = parseVariable("Expect const variable name.");
+       if (current->scopeDepth > 0) {
+         current->locals[current->localCount - 1].isConst = true;
+       }
+
+       consume(TOKEN_EQUAL, "Const variables must be initialized.");
+       expression();
+       consume(TOKEN_SEMICOLON, "Expect ';' after const variable declaration.");
+       defineVariable(global);
+     }
+     ```
+4. **Compile-Time Re-assignment Error Enforcement (`clox/compiler.c`)**:
+   - In `namedVariable()`, if an assignment operator `=` is matched on a local variable marked with `isConst == true`, the compiler raises a compile error:
+     ```c
+     if (canAssign && match(TOKEN_EQUAL)) {
+       if (getOp == OP_GET_LOCAL && current->locals[arg].isConst) {
+         error("Cannot reassign to 'const' variable.");
+       }
+       expression();
+       emitBytes(setOp, arg);
+     }
+     ```
 
 ---
 

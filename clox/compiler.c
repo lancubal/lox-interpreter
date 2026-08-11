@@ -50,6 +50,7 @@ typedef struct {
   Token name;
   int depth;
   bool isCaptured;
+  bool isConst;
 } Local;
 
 typedef struct {
@@ -281,8 +282,8 @@ static int resolveLocal(Compiler *compiler, Token *name) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local *local = &compiler->locals[i];
     if (identifiersEqual(name, &local->name)) {
-      if (local->depth != -1) {
-        error("Can't read local variable in its own initializer");
+      if (local->depth == -1) {
+        error("Can't read local variable in its own initializer.");
       }
       return i;
     }
@@ -338,6 +339,7 @@ static void addLocal(Token name) {
   local->name = name;
   local->depth = -1;
   local->isCaptured = false;
+  local->isConst = false;
 }
 
 static void declareVariable() {
@@ -514,7 +516,7 @@ static void string(bool canAssign) {
 static void namedVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
   int arg = resolveLocal(current, &name);
-  if (arg != 1) {
+  if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
@@ -527,6 +529,9 @@ static void namedVariable(Token name, bool canAssign) {
   }
 
   if (canAssign && match(TOKEN_EQUAL)) {
+    if (getOp == OP_GET_LOCAL && current->locals[arg].isConst) {
+      error("Cannot reassign to 'const' variable.");
+    }
     expression();
     emitBytes(setOp, arg);
   } else {
@@ -907,11 +912,25 @@ static void synchronize() {
   }
 }
 
+static void constDeclaration() {
+  uint8_t global = parseVariable("Expect const variable name.");
+  if (current->scopeDepth > 0) {
+    current->locals[current->localCount - 1].isConst = true;
+  }
+
+  consume(TOKEN_EQUAL, "Const variables must be initialized.");
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';' after const variable declaration.");
+  defineVariable(global);
+}
+
 static void declaration() {
   if (match(TOKEN_CLASS)) {
     classDeclaration();
   } else if (match(TOKEN_FUN)) {
     funDeclaration();
+  } else if (match(TOKEN_CONST)) {
+    constDeclaration();
   } else if (match(TOKEN_VAR)) {
     varDeclaration();
   } else {

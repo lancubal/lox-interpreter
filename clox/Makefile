@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O3
 TARGET = clox
-SOURCES = $(wildcard *.c)
+SOURCES = $(filter-out benchmark_table.c, $(wildcard *.c))
 OBJECTS = $(SOURCES:.c=.o)
 
 all: $(TARGET)
