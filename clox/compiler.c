@@ -403,7 +403,7 @@ static void defineVariable(uint8_t global) {
 
 static uint8_t argumentList() {
   uint8_t argCount = 0;
-  if (!check(TOKEN_LEFT_PAREN)) {
+  if (!check(TOKEN_RIGHT_PAREN)) {
     do {
       expression();
       if (argCount == 255) {
@@ -724,11 +724,14 @@ static void function(FunctionType type) {
   block();
 
   ObjFunction *function = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
-
-  for (int i = 0; i < function->upvalueCount; i++) {
-    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+  if (function->upvalueCount == 0) {
+    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+  } else {
+    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+    for (int i = 0; i < function->upvalueCount; i++) {
+      emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+      emitByte(compiler.upvalues[i].index);
+    }
   }
 }
 

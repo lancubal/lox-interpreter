@@ -1,0 +1,18 @@
+// Demostración de closures que capturan upvalues (ObjClosure selectivo)
+fun makeCounter() {
+  var count = 0;
+  fun increment() {
+    count = count + 1;
+    return count;
+  }
+  return increment;
+}
+
+var counter1 = makeCounter();
+print counter1(); // 1
+print counter1(); // 2
+print counter1(); // 3
+
+var counter2 = makeCounter();
+print counter2(); // 1
+print counter2(); // 2

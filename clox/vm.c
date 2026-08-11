@@ -143,7 +143,7 @@ static void runtimeError(const char *format, ...) {
 
   for (int i = vm.frameCount - 1; i >= 0; i--) {
     CallFrame *frame = &vm.frames[i];
-    ObjFunction *function = frame->closure->function;
+    ObjFunction *function = frame->function;
     size_t instruction = frame->ip - function->chunk.code - 1;
     fprintf(stderr, "[line %d] in ", getLine(&function->chunk, (int)instruction));
     if (function->name == NULL) {
@@ -231,10 +231,10 @@ Value pop() {
 
 static Value peek(int distance) { return vm.stackTop[-1 - distance]; }
 
-static bool call(ObjClosure *closure, int argCount) {
-  if (argCount != closure->function->arity) {
-    runtimeError("Expected %d arguments but got %d.", closure->function->arity,
-                 argCount);
+static bool callFunction(ObjFunction *function, int argCount) {
+  if (argCount != function->arity) {
+    runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+    return false;
   }
 
   if (vm.frameCount == FRAMES_MAX) {
@@ -242,6 +242,26 @@ static bool call(ObjClosure *closure, int argCount) {
     return false;
   }
   CallFrame *frame = &vm.frames[vm.frameCount++];
+  frame->function = function;
+  frame->closure = NULL;
+  frame->ip = function->chunk.code;
+  frame->slots = vm.stackTop - argCount - 1;
+  return true;
+}
+
+static bool callClosure(ObjClosure *closure, int argCount) {
+  if (argCount != closure->function->arity) {
+    runtimeError("Expected %d arguments but got %d.", closure->function->arity,
+                 argCount);
+    return false;
+  }
+
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+  CallFrame *frame = &vm.frames[vm.frameCount++];
+  frame->function = closure->function;
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
   frame->slots = vm.stackTop - argCount - 1;
@@ -254,22 +274,25 @@ static bool callValue(Value callee, int argCount) {
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod *bound = AS_BOUND_METHOD(callee);
       vm.stackTop[-argCount - 1] = bound->receiver;
-      return call(bound->method, argCount);
+      return callValue(OBJ_VAL(bound->method), argCount);
     }
     case OBJ_CLASS: {
       ObjClass *klass = AS_CLASS(callee);
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
       Value initializer;
       if (tableGet(&klass->methods, OBJ_VAL(vm.initString), &initializer)) {
-        return call(AS_CLOSURE(initializer), argCount);
+        return callValue(initializer, argCount);
       } else if (argCount != 0) {
         runtimeError("Expected 0 arguments but got %d", argCount);
         return false;
       }
       return true;
     }
+    case OBJ_FUNCTION: {
+      return callFunction(AS_FUNCTION(callee), argCount);
+    }
     case OBJ_CLOSURE: {
-      return call(AS_CLOSURE(callee), argCount);
+      return callClosure(AS_CLOSURE(callee), argCount);
     }
     case OBJ_NATIVE: {
       ObjNative *native = AS_NATIVE_OBJ(callee);
@@ -300,7 +323,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount) {
     return false;
   }
 
-  return call(AS_CLOSURE(method), argCount);
+  return callValue(method, argCount);
 }
 
 static bool invoke(ObjString *name, int argCount) {
@@ -399,7 +422,7 @@ static InterpretResult run() {
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT()                                                        \
-  (frame->closure->function->chunk.constants.values[READ_BYTE()])
+  (frame->function->chunk.constants.values[READ_BYTE()])
 #define READ_SHORT()                                                           \
   (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define READ_24BIT()                                                           \
@@ -428,8 +451,8 @@ static InterpretResult run() {
     }
     printf("\n");
     disassembleInstruction(
-        &frame->closure->function->chunk,
-        (int)(ip - frame->closure->function->chunk.code));
+        &frame->function->chunk,
+        (int)(ip - frame->function->chunk.code));
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
@@ -441,7 +464,7 @@ static InterpretResult run() {
     case OP_CONSTANT_LONG: {
       uint32_t index = READ_24BIT();
       Value constant =
-          frame->closure->function->chunk.constants.values[index];
+          frame->function->chunk.constants.values[index];
       push(constant);
       break;
     }
@@ -738,10 +761,7 @@ InterpretResult interpret(const char *source) {
     return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  ObjClosure *closure = newClosure(function);
-  pop();
-  push(OBJ_VAL(closure));
-  call(closure, 0);
+  callFunction(function, 0);
 
   return run();
 }
