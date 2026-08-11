@@ -44,6 +44,90 @@ static bool sqrtNative(int argCount, Value *args, Value *result) {
   return true;
 }
 
+static bool absNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0])) {
+    runtimeError("Argument to abs() must be a number.");
+    return false;
+  }
+  *result = NUMBER_VAL(fabs(AS_NUMBER(args[0])));
+  return true;
+}
+
+static bool floorNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0])) {
+    runtimeError("Argument to floor() must be a number.");
+    return false;
+  }
+  *result = NUMBER_VAL(floor(AS_NUMBER(args[0])));
+  return true;
+}
+
+static bool ceilNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0])) {
+    runtimeError("Argument to ceil() must be a number.");
+    return false;
+  }
+  *result = NUMBER_VAL(ceil(AS_NUMBER(args[0])));
+  return true;
+}
+
+static bool strNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  Value val = args[0];
+  if (IS_STRING(val)) {
+    *result = val;
+    return true;
+  }
+
+  char buffer[64];
+  if (IS_NIL(val)) {
+    snprintf(buffer, sizeof(buffer), "nil");
+  } else if (IS_BOOL(val)) {
+    snprintf(buffer, sizeof(buffer), AS_BOOL(val) ? "true" : "false");
+  } else if (IS_NUMBER(val)) {
+    snprintf(buffer, sizeof(buffer), "%g", AS_NUMBER(val));
+  } else {
+    snprintf(buffer, sizeof(buffer), "<object>");
+  }
+
+  int len = (int)strlen(buffer);
+  char *heapChars = ALLOCATE(char, len + 1);
+  memcpy(heapChars, buffer, len);
+  heapChars[len] = '\0';
+
+  *result = OBJ_VAL(takeString(heapChars, len));
+  return true;
+}
+
+static bool typeNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  Value val = args[0];
+  const char *typeName = "unknown";
+
+  if (IS_NIL(val))
+    typeName = "nil";
+  else if (IS_BOOL(val))
+    typeName = "boolean";
+  else if (IS_NUMBER(val))
+    typeName = "number";
+  else if (IS_STRING(val))
+    typeName = "string";
+  else if (IS_FUNCTION(val) || IS_CLOSURE(val) || IS_NATIVE(val))
+    typeName = "function";
+  else if (IS_CLASS(val))
+    typeName = "class";
+  else if (IS_INSTANCE(val))
+    typeName = "instance";
+  else if (IS_BOUND_METHOD(val))
+    typeName = "method";
+
+  *result = OBJ_VAL(copyString(typeName, (int)strlen(typeName)));
+  return true;
+}
+
 static void resetStack() {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
@@ -100,6 +184,11 @@ void initVM() {
 
   defineNative("clock", clockNative, 0);
   defineNative("sqrt", sqrtNative, 1);
+  defineNative("abs", absNative, 1);
+  defineNative("floor", floorNative, 1);
+  defineNative("ceil", ceilNative, 1);
+  defineNative("str", strNative, 1);
+  defineNative("type", typeNative, 1);
 }
 
 void freeVM() {

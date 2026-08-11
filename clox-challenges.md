@@ -2020,3 +2020,39 @@ When `callValue()` invokes a native function, it passes `&result`. If the native
 Add some more native functions to do things you find useful. Write
 some programs using those. What did you add? How do they affect the
 feel of the language and how practical it is?
+
+#### Answer:
+
+##### 1. Implemented Native Functions (`clox/vm.c`):
+
+We implemented five new native functions to enhance Lox's standard library:
+
+1. **`abs(x)`** (arity 1): Returns the absolute value of a number (`fabs`).
+2. **`floor(x)`** (arity 1): Rounds a number down to the nearest integer (`floor`).
+3. **`ceil(x)`** (arity 1): Rounds a number up to the nearest integer (`ceil`).
+4. **`str(val)`** (arity 1): Explicitly converts any Lox value (`number`, `bool`, `nil`, `object`) into a Lox string object (`takeString`).
+5. **`type(val)`** (arity 1): Performs runtime reflection, returning a string representing the value's type (`"number"`, `"string"`, `"boolean"`, `"nil"`, `"function"`, `"class"`, `"instance"`, `"method"`).
+
+##### 2. Example Program in Lox:
+
+```lox
+print "--- Math & Reflection ---";
+print abs(-42.5);   // Prints: 42.5
+print floor(3.9);   // Prints: 3
+print ceil(3.1);    // Prints: 4
+
+print "--- String Concatenation & Type Introspection ---";
+var price = 100;
+print str(price) + " USD"; // Prints: 100 USD
+
+print type(123);      // Prints: number
+print type("hello");  // Prints: string
+print type(true);     // Prints: boolean
+print type(clock);    // Prints: function
+```
+
+##### 3. Language Impact and Practical Utility:
+
+- **Type Reflection (`type`)**: Dynamically typed languages rely heavily on type introspection for polymorphism and defensive checks. Adding `type()` makes Lox feel like Python (`type()`) or JavaScript (`typeof`), allowing user code to inspect values at runtime.
+- **Explicit String Casting (`str`)**: Previously, string concatenation only worked when both operands were strings (`"a" + "b"`). With `str()`, users can cleanly format numbers and booleans into string output (`str(count) + " items"`) without manual string formatting hacks.
+- **Math Primitives (`abs`, `floor`, `ceil`, `sqrt`)**: Essential for geometric calculations, games, indexing math, and algorithms. These additions make Lox feel significantly more mature, expressive, and practical for scripting.
