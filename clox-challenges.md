@@ -1699,14 +1699,125 @@ Added `TOKEN_CONTINUE` enum value and updated the identifier keyword trie under 
 
 ---
 
-### 3.
-Control flow constructs have been mostly unchanged since Algol 68.
-Language evolution since then has focused on making code more
-declarative and high level, so imperative control flow hasn’t gotten
-much attention.
-For fun, try to invent a useful novel control flow feature for Lox. It can
-be a refinement of an existing form or something entirely new. In
-practice, it’s hard to come up with something useful enough at this low
-expressiveness level to outweigh the cost of forcing a user to learn an
-unfamiliar notation and behavior, but it’s a good chance to practice
-your design skills.
+#### Answer:
+
+We propose three novel and practical control flow constructs for Lox, highlighting **Feature 1: The Resilient `attempt ... retry ... fallback` Construct** as our primary design.
+
+---
+
+### Feature 1 (Primary Design): The Resilient `attempt` Construct
+
+#### 1. Motivation & Problem Statement
+In real-world programming (API calls, hardware polling, optimistic concurrency, user inputs, simulation steps), retrying a block of code up to $N$ times until it succeeds or exhausts retries is an extremely common pattern.
+
+In standard imperative languages, expressing a retrying operation requires verbose manual loop counters, flag variables, and nested conditionals:
+
+```lox
+// Verbose traditional pattern in Lox
+var retries = 3;
+var success = false;
+while (retries > 0 && !success) {
+  var res = tryFetchData();
+  if (res != nil) {
+    success = true;
+  } else {
+    retries = retries - 1;
+  }
+}
+if (!success) {
+  print "Failed to fetch data after 3 attempts.";
+}
+```
+
+#### 2. Grammar & Syntax
+We introduce `attempt (count) statement [fallback statement]` and a context-aware `retry;` statement:
+
+```ebnf
+attemptStmt → "attempt" "(" expression ")" statement ("fallback" statement)? ;
+retryStmt   → "retry" ";" ;
+```
+
+#### 3. Concrete Example in Lox
+```lox
+attempt (3) {
+  var response = fetchRemoteConfig();
+  if (response == nil) {
+    print "Attempt failed, retrying...";
+    retry;
+  }
+  print "Config loaded successfully!";
+} fallback {
+  print "All 3 attempts failed. Using default configuration.";
+}
+```
+
+#### 4. Execution Semantics
+1. The parenthesized expression evaluates to an integer count $N$ (the maximum number of execution attempts).
+2. The VM pushes $N$ onto a hidden stack slot (local variable) as the remaining attempt counter.
+3. The body statement executes.
+   - If execution completes normally without encountering a `retry;` or `break;`, it exits the `attempt` construct successfully and skips the `fallback` block.
+   - If `retry;` is encountered:
+     - The compiler decrements the hidden attempt counter.
+     - If remaining attempts $> 0$, `retry;` pops local variables declared within the `attempt` body and jumps back to the start of the body.
+     - If remaining attempts $== 0$, execution jumps to the `fallback` block (or exits if no fallback block is present).
+4. If `break;` is executed inside the `attempt` body, it exits both the `attempt` body and the `fallback` block immediately.
+
+#### 5. Implementation Strategy in `clox` Bytecode
+- **Opcode**: We add `OP_RETRY` (or compile `retry` using conditional decrement and `OP_LOOP`).
+- **Hidden Counter**: The compiler reserves a hidden local variable (`:attempts`) at `scopeDepth` of the `attempt` statement.
+- **Stack Cleanup**: Just like `continue`, `retry` pops any local variables created inside the body scope down to the hidden counter slot before jumping back to the top of the body.
+
+---
+
+### Feature 2 (Refinement): The `for ... then` Search Loop Completion Construct
+
+#### 1. Motivation
+Python introduced `for ... else`, which executes the `else` block if a loop finishes without hitting a `break`. While incredibly useful for linear searches, the keyword `else` is notoriously confusing because it reads as "if the loop didn't run at all".
+
+#### 2. Syntax & Example
+We refine this feature by introducing the keyword **`then`** for loop completion:
+
+```lox
+for (var i = 0; i < list.length(); i = i + 1) {
+  if (list.get(i) == target) {
+    print "Found target at index " + i;
+    break;
+  }
+} then {
+  print "Target was not found in the entire list.";
+}
+```
+
+#### 3. Semantics
+- If the loop exits via `break`, the `then` block is skipped.
+- If the loop condition evaluates to `false` (natural termination), execution flows directly into the `then` block.
+
+---
+
+### Feature 3 (Scope Primitive): The `defer` Statement
+
+#### 1. Motivation
+Borrowed from Go, Swift, and Zig, `defer statement;` schedules a statement to be executed automatically whenever the current enclosing block or function scope exits (whether via return, break, or reaching the end of the block).
+
+#### 2. Syntax & Example
+```lox
+fun readUserRecord(db) {
+  var lock = db.acquireLock();
+  defer db.releaseLock(lock); // Guaranteed execution on exit!
+
+  var user = db.queryUser();
+  if (user == nil) return nil;
+
+  return user.name;
+}
+```
+
+---
+
+### Summary Table of Proposed Features
+
+| Feature | Keyword(s) | Primary Use Case | Key Advantage |
+| :--- | :--- | :--- | :--- |
+| **Resilient Attempt** | `attempt`, `retry`, `fallback` | Retrying network calls, I/O, or optimistic operations | Replaces verbose `while` counter boilerplate with a clean primitive |
+| **Search Completion** | `for ... then`, `while ... then` | Linear searches & validation scans | Replaces flag variables; vastly clearer than Python's `for-else` |
+| **Scope Deferral** | `defer` | Resource cleanup & invariant preservation | Prevents resource leaks on early returns/breaks |
