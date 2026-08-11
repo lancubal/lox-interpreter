@@ -162,7 +162,7 @@ void printObject(Value value) {
     break;
   }
   case OBJ_STRING: {
-    printf("%s", AS_CSTRING(value));
+    printf("%.*s", AS_STRING(value)->length, AS_CSTRING(value));
     break;
   }
   case OBJ_UPVALUE: {

@@ -15,6 +15,7 @@ typedef enum {
   OP_TRUE,
   OP_FALSE,
   OP_POP,
+  OP_DUP,
   OP_GET_LOCAL,
   OP_GET_LOCAL_LONG,
   OP_SET_LOCAL,

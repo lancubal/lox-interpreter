@@ -1535,6 +1535,91 @@ To keep things simpler, we’re omitting fallthrough and `break`
 statements. Each case automatically jumps to the end of the switch
 statement after its statements are done.
 
+#### Answer:
+
+##### 1. New Opcode `OP_DUP` (`clox/chunk.h`, `clox/debug.c`, `clox/vm.c`):
+
+To compare the evaluated switch value against multiple `case` expressions without consuming or destroying the switch value on false matches, we added the `OP_DUP` opcode:
+
+- **`clox/chunk.h`**: Added `OP_DUP` to `OpCode`.
+- **`clox/vm.c`**: Implemented `case OP_DUP: { push(peek(0)); break; }`.
+
+##### 2. Scanner Tokens (`clox/scanner.h`, `clox/scanner.c`):
+
+Added `TOKEN_CASE`, `TOKEN_DEFAULT`, `TOKEN_SWITCH`, and `TOKEN_COLON` (`:`). Updated `identifierType()` keyword trie for `"case"`, `"default"`, and `"switch"`.
+
+##### 3. Compiler `switchStatement()` (`clox/compiler.c`):
+
+```c
+static void switchStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after switch value.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before switch cases.");
+
+  beginScope();
+
+  int state = 0; // 0: before cases, 1: cases, 2: default
+  int caseEnds[UINT8_COUNT];
+  int caseCount = 0;
+
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    if (match(TOKEN_CASE)) {
+      if (state == 2) error("Can't have another case after default.");
+      state = 1;
+
+      emitByte(OP_DUP);
+      expression();
+      consume(TOKEN_COLON, "Expect ':' after case value.");
+
+      emitByte(OP_EQUAL);
+      int skipCase = emitJump(OP_JUMP_IF_FALSE);
+      emitByte(OP_POP); // Pop true comparison result
+      emitByte(OP_POP); // Pop switch value
+
+      while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+             !check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+        statement();
+      }
+
+      if (caseCount < UINT8_COUNT) {
+        caseEnds[caseCount++] = emitJump(OP_JUMP);
+      } else {
+        error("Too many cases in switch statement.");
+      }
+
+      patchJump(skipCase);
+      emitByte(OP_POP); // Pop false comparison result
+    } else if (match(TOKEN_DEFAULT)) {
+      if (state == 2) error("Can't have more than one default case.");
+      state = 2;
+
+      consume(TOKEN_COLON, "Expect ':' after 'default'.");
+      emitByte(OP_POP); // Pop switch value
+
+      while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+             !check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+        statement();
+      }
+    } else {
+      error("Expect 'case' or 'default' inside 'switch'.");
+      advance();
+    }
+  }
+
+  if (state != 2) {
+    emitByte(OP_POP); // Pop switch value if no default matched
+  }
+
+  for (int i = 0; i < caseCount; i++) {
+    patchJump(caseEnds[i]);
+  }
+
+  endScope();
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after switch cases.");
+}
+```
+
 ---
 
 ### 2.
