@@ -21,6 +21,7 @@
 #define AS_INSTANCE(value) ((ObjInstance *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
+#define AS_NATIVE_OBJ(value) ((ObjNative *)AS_OBJ(value))
 #define AS_NATIVE(value) (((ObjNative *)AS_OBJ(value))->function)
 #define AS_STRING(value) ((ObjString *)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString *)AS_OBJ(value))->chars)
@@ -55,6 +56,7 @@ typedef Value (*NativeFn)(int argCount, Value *args);
 typedef struct {
   Obj obj;
   NativeFn function;
+  int arity;
 } ObjNative;
 
 struct ObjString {
@@ -102,7 +104,7 @@ ObjClass *newClass(ObjString *name);
 ObjInstance *newInstance(ObjClass *klass);
 ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction();
-ObjNative *newNative(NativeFn function);
+ObjNative *newNative(NativeFn function, int arity);
 ObjString *takeString(char *chars, int length);
 ObjString *copyString(const char *chars, int length);
 ObjUpvalue *newUpvalue(Value *slot);

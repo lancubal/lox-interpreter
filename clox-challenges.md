@@ -1905,7 +1905,43 @@ Native function calls are fast in part because we don’t validate that the
 call passes as many arguments as the function expects. We really
 should, or an incorrect call to a native function without enough
 arguments could cause the function to read uninitialized memory. Add
-arity checking.
+#### Answer:
+
+##### 1. Extending `ObjNative` Struct (`clox/object.h`):
+
+We added an `arity` field to `ObjNative` to store the required number of parameters for each native function:
+
+```c
+typedef struct {
+  Obj obj;
+  NativeFn function;
+  int arity;
+} ObjNative;
+```
+
+##### 2. Updating Constructor and Registrations (`clox/object.c`, `clox/vm.c`):
+
+- **Constructor**: Updated `newNative(NativeFn function, int arity)` in `clox/object.c`.
+- **Registration Helper**: Updated `defineNative(const char *name, NativeFn function, int arity)` in `clox/vm.c`.
+- **Global Native Registration**: In `initVM()`, we registered `clock` as 0-arity: `defineNative("clock", clockNative, 0);`.
+
+##### 3. Runtime Arity Verification in `callValue()` (`clox/vm.c`):
+
+Before invoking a native function, `callValue()` validates that `argCount` equals `native->arity`. If they do not match, a runtime error is reported, preventing out-of-bounds reads into uninitialized stack memory:
+
+```c
+    case OBJ_NATIVE: {
+      ObjNative *native = AS_NATIVE_OBJ(callee);
+      if (argCount != native->arity) {
+        runtimeError("Expected %d arguments but got %d.", native->arity, argCount);
+        return false;
+      }
+      Value result = native->function(argCount, vm.stackTop - argCount);
+      vm.stackTop -= argCount + 1;
+      push(result);
+      return true;
+    }
+```
 
 ---
 
