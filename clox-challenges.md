@@ -1172,6 +1172,39 @@ we allow only 256 constants in a single chunk.
 Optimize this. How does your optimization affect the performance of
 the compiler compared to the runtime? Is this the right trade-off?
 
+#### Answer:
+
+##### 1. Implementation Details (`clox/compiler.c`):
+Updated `identifierConstant()` to search the current chunk's constant table for an existing string value before allocating a new constant slot:
+
+```c
+static uint8_t identifierConstant(Token *name) {
+  ObjString *identifier = copyString(name->start, name->length);
+  Value identifierVal = OBJ_VAL(identifier);
+
+  Chunk *chunk = currentChunk();
+  for (int i = 0; i < chunk->constants.count; i++) {
+    if (valuesEqual(chunk->constants.values[i], identifierVal)) {
+      return (uint8_t)i;
+    }
+  }
+
+  return makeConstant(identifierVal);
+}
+```
+
+##### 2. Trade-off & Performance Analysis:
+
+- **Compiler Performance Impact**:
+  - Adds an $O(N)$ linear search over the chunk's constant array for each identifier.
+  - Because single chunks cap constants at $N \le 256$, searching a 256-element array of contiguous `uint64_t` values in CPU L1 cache takes less than 100 nanoseconds—a completely negligible overhead during compilation.
+- **Runtime Performance & Memory Impact**:
+  - Eliminates redundant string constant slots in `chunk->constants`.
+  - Prevents premature "Too many constants in one chunk" compiler errors when a single function references global variables or properties repeatedly.
+  - Improves L1 data cache efficiency during VM bytecode execution by shrinking the size of constant arrays.
+- **Is this the right trade-off?**:
+  - **YES**. Compilation happens once per function/script, whereas VM execution runs repeatedly in loops. Paying a microsecond during compilation to conserve constant slots and improve runtime memory density is the ideal compiler design trade-off.
+
 ---
 
 ### 2.

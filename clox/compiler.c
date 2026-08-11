@@ -258,7 +258,17 @@ static ParseRule *getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
 static uint8_t identifierConstant(Token *name) {
-  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+  ObjString *identifier = copyString(name->start, name->length);
+  Value identifierVal = OBJ_VAL(identifier);
+
+  Chunk *chunk = currentChunk();
+  for (int i = 0; i < chunk->constants.count; i++) {
+    if (valuesEqual(chunk->constants.values[i], identifierVal)) {
+      return (uint8_t)i;
+    }
+  }
+
+  return makeConstant(identifierVal);
 }
 
 static bool identifiersEqual(Token *a, Token *b) {
