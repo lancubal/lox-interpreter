@@ -1120,3 +1120,41 @@ will use the hash table is a challenge.
 Write a handful of different benchmark programs to validate our hash
 table implementation. How does the performance vary between them?
 Why did you choose the specific test cases you chose?
+
+#### Answer:
+
+To validate the performance characteristics of our `clox` hash table implementation across diverse runtime conditions, we implemented a dedicated C benchmark program ([`clox/benchmark_table.c`](file:///home/luna/repos/lox-interpreter/clox/benchmark_table.c)) covering 4 distinct operational scenarios.
+
+##### 1. Designed Benchmark Scenarios & Rationale:
+
+1. **Benchmark 1: Sequential Insertion & Growth (`benchSequentialInserts`)**:
+   - Inserts 10,000 unique numeric keys into an initially empty table, then queries all 10,000 keys.
+   - *Rationale*: Measures array reallocation overhead (`adjustCapacity`), capacity growth ($8 \rightarrow 16 \rightarrow \dots \rightarrow 16,384$), and average probe length during table scaling.
+2. **Benchmark 2: Read-Heavy Workload (`benchReadHeavyWorkload`)**:
+   - Performs 100,000 lookup operations on a table populated with 5,000 entries (50% hit rate).
+   - *Rationale*: Models standard VM runtime access patterns (such as global variable resolution and class property lookups), where reads outnumber writes by orders of magnitude.
+3. **Benchmark 3: Tombstone Churn (`benchTombstoneChurn`)**:
+   - Repeatedly deletes 50% of the table entries (`tableDelete`) and inserts new entries for 50 cycles.
+   - *Rationale*: Evaluates open addressing performance degradation caused by **tombstone accumulation** (`TOMBSTONE_VAL`). Tombstones pollute probe sequences and increase average search lengths.
+4. **Benchmark 4: Interned String Keys (`benchStringKeys`)**:
+   - Inserts and looks up 2,000 interned `ObjString*` keys.
+   - *Rationale*: Validates the fast path for string keys where pre-computed FNV-1a hashes and pointer equality (`a == b`) avoid character-by-character string comparisons.
+
+##### 2. Empirical Benchmark Execution Results:
+
+```
+=== CLOX HASH TABLE BENCHMARK SUITE ===
+  [Bench 1 - Sequential Number Keys] Insert 10000 entries: 1.20 ms | Lookup: 0.12 ms (Found: 10000/10000)
+  [Bench 2 - Read-Heavy Workload] 100000 Lookups (Size 5000): 2.62 ms (Hits: 50068)
+  [Bench 3 - Tombstone Churn] 50 delete/reinsert cycles (Size 2000): 3.43 ms
+  [Bench 4 - String Keys] Insert 2000 strings: 0.19 ms | Lookup: 0.02 ms (Found: 2000/2000)
+=======================================
+```
+
+##### 3. Performance Analysis & Variations:
+
+- **Read-Heavy Speed**: Lookups in Benchmark 2 executed at **38.1 million operations per second** (2.62 ms for 100,000 lookups). Contiguous memory layout in open addressing provides high CPU L1 cache hit rates.
+- **Tombstone Overhead**: Benchmark 3 took 3.43 ms for 2,000 entries under tombstone churn—substantially slower per entry than pure insertions. In linear probing, tombstones are not reclaimed until table resize (`adjustCapacity`), forcing `tableGet` to probe longer chains past deleted slots.
+- **String Key Fast Path**: String lookups (Benchmark 4) executed in 0.02 ms for 2,000 keys (0.01 µs per lookup) because string interning reduces equality checks to simple pointer comparisons.
+
+---
