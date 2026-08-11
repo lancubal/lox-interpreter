@@ -1,0 +1,4 @@
+// Demostración del operador ternario (cond ? a : b) en jlox
+var age = 20;
+var status = age >= 18 ? "Adulto" : "Menor";
+print status;

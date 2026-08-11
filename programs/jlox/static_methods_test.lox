@@ -1,0 +1,8 @@
+// Demostración de métodos estáticos de clase en jlox
+class Math {
+  class square(n) {
+    return n * n;
+  }
+}
+
+print Math.square(8); // 64

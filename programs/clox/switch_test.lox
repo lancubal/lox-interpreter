@@ -1,0 +1,13 @@
+// Demostración de sentencia 'switch' en clox
+var value = "b";
+
+switch (value) {
+  case "a":
+    print "Coincidió con A";
+  case "b":
+    print "Coincidió con B";
+  case "c":
+    print "Coincidió con C";
+  default:
+    print "Opción por defecto";
+}

@@ -1,0 +1,19 @@
+// Demostración de sentencia 'continue' en bucles 'while' y 'for' con limpieza de ámbitos
+print "--- Continue en bucle while ---";
+var i = 0;
+while (i < 5) {
+  i = i + 1;
+  if (i == 3) continue;
+  print i;
+}
+
+print "--- Continue en bucle for con variables locales anidadas ---";
+for (var j = 0; j < 4; j = j + 1) {
+  var outerVar = "outer";
+  {
+    var innerVar = "inner";
+    if (j == 1) continue;
+    print innerVar;
+  }
+  print outerVar;
+}

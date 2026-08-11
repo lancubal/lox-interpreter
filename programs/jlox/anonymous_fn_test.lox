@@ -1,0 +1,8 @@
+// Demostración de funciones anónimas / lambdas en jlox
+fun runCallback(fn) {
+  fn("Lox");
+}
+
+runCallback(fun (name) {
+  print "Hola " + name + " desde una lambda anónima!";
+});

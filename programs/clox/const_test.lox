@@ -1,0 +1,7 @@
+// Demostración de variables locales de asignación única ('const')
+{
+  const MAX_LIMIT = 100;
+  print MAX_LIMIT;
+  // Intentar reasignar MAX_LIMIT causará un error de compilación
+  // MAX_LIMIT = 200;
+}

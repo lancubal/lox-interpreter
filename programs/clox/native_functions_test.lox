@@ -1,0 +1,18 @@
+// Demostración de las funciones nativas en clox: clock, sqrt, abs, floor, ceil, str, type
+print "--- Funciones Matemáticas Nativas ---";
+print abs(-42.5);   // 42.5
+print floor(3.9);   // 3
+print ceil(3.1);    // 4
+print sqrt(25);     // 5
+
+print "--- Conversión de Cadenas e Introspección ---";
+var price = 100;
+print str(price) + " USD"; // "100 USD"
+print str(true);         // "true"
+print str(nil);          // "nil"
+
+print type(123);         // "number"
+print type("hello");     // "string"
+print type(true);        // "boolean"
+print type(nil);         // "nil"
+print type(clock);       // "function"

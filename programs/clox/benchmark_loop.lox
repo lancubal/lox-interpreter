@@ -1,0 +1,9 @@
+// Benchmark de rendimiento: Bucle ajustado de 10 Millones de iteraciones
+var start = clock();
+var sum = 0;
+for (var i = 0; i < 10000000; i = i + 1) {
+  sum = sum + i;
+}
+print sum;
+print "Tiempo transcurrido (seg):";
+print clock() - start;
