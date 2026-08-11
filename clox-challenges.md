@@ -1347,6 +1347,35 @@ var a = a;
 ```
 What would you do if it was your language? Why?
 
+#### Answer:
+
+##### 1. How Other Languages Handle `var a = a;`:
+
+- **C / C++**:
+  - **Allowed**. The variable `a` enters the symbol table immediately at its name token, *before* its initializer expression is evaluated.
+  - **Behavior**: `int a = a;` initializes `a` with its own uninitialized garbage stack memory.
+- **JavaScript**:
+  - **`var a = a;`**: Allowed. `var` declarations are hoisted to the top of the function with value `undefined`. Assigns `undefined` to `a`.
+  - **`let a = a;` / `const a = a;`**: **Runtime `ReferenceError` (Temporal Dead Zone - TDZ)**. The variable enters scope at block start but stays in the TDZ until initialized. Reading `a` on the right side throws `Cannot access 'a' before initialization`.
+- **C# / Java**:
+  - **Compile Error**. In C#, `CS0841: Cannot use local variable 'a' before it is declared`. Java reports `variable a might not have been initialized`.
+- **Rust**:
+  - **Variable Shadowing**. `let a = a;` is legal if an outer variable `a` exists! The right-hand `a` resolves to the **outer scope** `a`, initializing the new inner `a` with the outer `a`'s value. If no outer `a` exists, Rust reports a compile error (`cannot find value 'a' in this scope`).
+- **Lox (`clox`)**:
+  - **Compile Error**. In `clox`, `declareVariable()` sets `local.depth = -1` (uninitialized mark). When `a` on the right side is resolved by `resolveLocal()`, seeing `local.depth == -1` triggers a compile error: `"Can't read local variable in its own initializer."`
+
+##### 2. Recommended Choice for Lox & Justification:
+
+If Lox was my language, I would choose **Compile Error (Lox's approach) or Outer-Scope Shadowing (Rust's approach)**.
+
+##### Justification:
+1. **Prevents Silent Bugs**: Reading uninitialized stack garbage (C) or `nil`/`undefined` (JS `var`) in 99% of cases represents a typo or logic bug. Raising a compile error catches the bug at build time.
+2. **Clear Temporal Boundaries**: Enforces a clean, unambiguous three-step sequence:
+   1. Evaluate right-hand side expression (resolving identifiers in the current outer scope).
+   2. Allocate stack slot for the new variable.
+   3. Mark the new variable as initialized and ready for scope lookups.
+3. **Supports Elegant Shadowing**: If `var a = a + 1;` is written inside a block, evaluating the right-hand `a` against the *outer scope* variable `a` allows clean, functional-style variable shadowing without ambiguity.
+
 ---
 
 ### 3.
