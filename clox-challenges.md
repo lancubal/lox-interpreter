@@ -1455,3 +1455,61 @@ error.
 ### 4.
 Extend clox to allow more than 256 local variables to be in scope at a
 time.
+
+#### Answer:
+
+To allow `clox` to support more than 256 local variables in scope concurrently (expanding the capacity up to 65,536 active local variables), we extended the local storage array and introduced 24-bit long-operand local opcodes (`OP_GET_LOCAL_LONG` and `OP_SET_LOCAL_LONG`):
+
+##### 1. Expanding Array Capacity (`clox/common.h` & `clox/compiler.c`):
+
+- In `common.h`, defined `#define UINT16_COUNT (UINT16_MAX + 1)`.
+- In `compiler.c`, expanded the compiler's local tracking array from `Local locals[UINT8_COUNT]` to `Local locals[UINT16_COUNT]` (65,536 local variable capacity).
+- In `addLocal()`, updated the overflow check to `if (current->localCount == UINT16_COUNT)`.
+
+##### 2. Introducing 24-Bit Long Local Opcodes (`clox/chunk.h` & `clox/debug.c`):
+
+- Added `OP_GET_LOCAL_LONG` and `OP_SET_LOCAL_LONG` to `OpCode` enum in `chunk.h`.
+- In `debug.c`, added `longInstruction()` to disassemble 3-byte local slot operands:
+  ```c
+  static int longInstruction(const char *name, Chunk *chunk, int offset) {
+    uint32_t slot = chunk->code[offset + 1] |
+                   (chunk->code[offset + 2] << 8) |
+                   (chunk->code[offset + 3] << 16);
+    printf("%-16s %4d\n", name, slot);
+    return offset + 4;
+  }
+  ```
+
+##### 3. Compiler Code Generation (`clox/compiler.c`):
+
+Updated `namedVariable()` to inspect slot index `arg`. If `arg <= UINT8_MAX`, it emits standard 1-byte `OP_GET_LOCAL`/`OP_SET_LOCAL`. If `arg > UINT8_MAX`, it emits `OP_GET_LOCAL_LONG`/`OP_SET_LOCAL_LONG` followed by a 24-bit little-endian operand:
+
+```c
+if (getOp == OP_GET_LOCAL && arg > UINT8_MAX) {
+  emitByte(OP_GET_LOCAL_LONG);
+  emitByte((uint8_t)(arg & 0xff));
+  emitByte((uint8_t)((arg >> 8) & 0xff));
+  emitByte((uint8_t)((arg >> 16) & 0xff));
+} else {
+  emitBytes(getOp, (uint8_t)arg);
+}
+```
+
+##### 4. VM Instruction Loop (`clox/vm.c`):
+
+Implemented `OP_GET_LOCAL_LONG` and `OP_SET_LOCAL_LONG` in `run()`:
+
+```c
+case OP_GET_LOCAL_LONG: {
+  uint32_t slot = READ_24BIT();
+  push(frame->slots[slot]);
+  break;
+}
+case OP_SET_LOCAL_LONG: {
+  uint32_t slot = READ_24BIT();
+  frame->slots[slot] = peek(0);
+  break;
+}
+```
+
+---

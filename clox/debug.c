@@ -44,9 +44,17 @@ static int simpleInstruction(const char *name, int offset) {
   return offset + 1;
 }
 
+static int longInstruction(const char *name, Chunk *chunk, int offset) {
+  uint32_t slot = chunk->code[offset + 1] |
+                 (chunk->code[offset + 2] << 8) |
+                 (chunk->code[offset + 3] << 16);
+  printf("%-16s %4d\n", name, slot);
+  return offset + 4;
+}
+
 static int byteInstruction(const char *name, Chunk *chunk, int offset) {
   uint8_t slot = chunk->code[offset + 1];
-  printf("%s-16s %4d\n", name, slot);
+  printf("%-16s %4d\n", name, slot);
   return offset + 2;
 }
 
@@ -85,8 +93,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_GET_GLOBAL", chunk, offset);
   case OP_GET_LOCAL:
     return byteInstruction("OP_GET_LOCAL", chunk, offset);
+  case OP_GET_LOCAL_LONG:
+    return longInstruction("OP_GET_LOCAL_LONG", chunk, offset);
   case OP_SET_LOCAL:
     return byteInstruction("OP_SET_LOCAL", chunk, offset);
+  case OP_SET_LOCAL_LONG:
+    return longInstruction("OP_SET_LOCAL_LONG", chunk, offset);
   case OP_GET_UPVALUE:
     return byteInstruction("OP_GET_UPVALUE", chunk, offset);
   case OP_SET_UPVALUE:

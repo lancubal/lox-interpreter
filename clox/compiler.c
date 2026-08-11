@@ -69,7 +69,7 @@ typedef struct Compiler {
   struct Compiler *enclosing;
   ObjFunction *function;
   FunctionType type;
-  Local locals[UINT8_COUNT];
+  Local locals[UINT16_COUNT];
   int localCount;
   Upvalue upvalues[UINT8_COUNT];
   int scopeDepth;
@@ -173,6 +173,13 @@ static void emitReturn() {
 }
 
 static uint8_t makeConstant(Value value) {
+  Chunk *chunk = currentChunk();
+  for (int i = 0; i < chunk->constants.count; i++) {
+    if (valuesEqual(chunk->constants.values[i], value)) {
+      return (uint8_t)i;
+    }
+  }
+
   int constant = addConstant(currentChunk(), value);
   if (constant > UINT8_MAX) {
     error("Too many constants in one chunk.");
@@ -330,8 +337,8 @@ static int resolveUpvalue(Compiler *compiler, Token *name) {
 }
 
 static void addLocal(Token name) {
-  if (current->localCount == UINT8_COUNT) {
-    error("Too many local variables in funtion");
+  if (current->localCount == UINT16_COUNT) {
+    error("Too many local variables in function.");
     return;
   }
 
@@ -533,9 +540,23 @@ static void namedVariable(Token name, bool canAssign) {
       error("Cannot reassign to 'const' variable.");
     }
     expression();
-    emitBytes(setOp, arg);
+    if (getOp == OP_GET_LOCAL && arg > UINT8_MAX) {
+      emitByte(OP_SET_LOCAL_LONG);
+      emitByte((uint8_t)(arg & 0xff));
+      emitByte((uint8_t)((arg >> 8) & 0xff));
+      emitByte((uint8_t)((arg >> 16) & 0xff));
+    } else {
+      emitBytes(setOp, (uint8_t)arg);
+    }
   } else {
-    emitBytes(getOp, arg);
+    if (getOp == OP_GET_LOCAL && arg > UINT8_MAX) {
+      emitByte(OP_GET_LOCAL_LONG);
+      emitByte((uint8_t)(arg & 0xff));
+      emitByte((uint8_t)((arg >> 8) & 0xff));
+      emitByte((uint8_t)((arg >> 16) & 0xff));
+    } else {
+      emitBytes(getOp, (uint8_t)arg);
+    }
   }
 }
 
