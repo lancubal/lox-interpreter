@@ -1699,6 +1699,18 @@ Added `TOKEN_CONTINUE` enum value and updated the identifier keyword trie under 
 
 ---
 
+### 3.
+Control flow constructs have been mostly unchanged since Algol 68.
+Language evolution since then has focused on making code more
+declarative and high level, so imperative control flow hasn’t gotten
+much attention.
+For fun, try to invent a useful novel control flow feature for Lox. It can
+be a refinement of an existing form or something entirely new. In
+practice, it’s hard to come up with something useful enough at this low
+expressiveness level to outweigh the cost of forcing a user to learn an
+unfamiliar notation and behavior, but it’s a good chance to practice
+your design skills.
+
 #### Answer:
 
 We propose three novel and practical control flow constructs for Lox, highlighting **Feature 1: The Resilient `attempt ... retry ... fallback` Construct** as our primary design.
