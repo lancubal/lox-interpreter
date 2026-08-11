@@ -1,4 +1,4 @@
-#include "time.h"
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "chunk.h"
 #include "common.h"
@@ -19,8 +20,28 @@
 
 VM vm;
 
-static Value clockNative(int argCount, Value *args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+static void runtimeError(const char *format, ...);
+
+static bool clockNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  (void)args;
+  *result = NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+  return true;
+}
+
+static bool sqrtNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_NUMBER(args[0])) {
+    runtimeError("Argument to sqrt() must be a number.");
+    return false;
+  }
+  double num = AS_NUMBER(args[0]);
+  if (num < 0) {
+    runtimeError("Cannot calculate square root of negative number.");
+    return false;
+  }
+  *result = NUMBER_VAL(sqrt(num));
+  return true;
 }
 
 static void resetStack() {
@@ -78,6 +99,7 @@ void initVM() {
   vm.initString = copyString("init", 4);
 
   defineNative("clock", clockNative, 0);
+  defineNative("sqrt", sqrtNative, 1);
 }
 
 void freeVM() {
@@ -166,7 +188,10 @@ static bool callValue(Value callee, int argCount) {
         runtimeError("Expected %d arguments but got %d.", native->arity, argCount);
         return false;
       }
-      Value result = native->function(argCount, vm.stackTop - argCount);
+      Value result;
+      if (!native->function(argCount, vm.stackTop - argCount, &result)) {
+        return false;
+      }
       vm.stackTop -= argCount + 1;
       push(result);
       return true;

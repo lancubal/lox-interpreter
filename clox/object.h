@@ -51,7 +51,7 @@ typedef struct {
   ObjString *name;
 } ObjFunction;
 
-typedef Value (*NativeFn)(int argCount, Value *args);
+typedef bool (*NativeFn)(int argCount, Value *args, Value *result);
 
 typedef struct {
   Obj obj;
