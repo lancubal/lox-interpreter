@@ -1318,6 +1318,26 @@ reference to a variable, we have to do a linear scan through the array.
 Come up with something more efficient. Do you think the additional
 complexity is worth it?
 
+#### Answer:
+
+##### 1. Proposed $O(1)$ Alternative: Scoped Hash Map with Stacked Slot Lists
+
+Instead of performing a linear array scan ($O(N)$) backwards through `compiler->locals`, we can maintain a **Scoped Identifier Hash Table** mapping variable names to a stack of active stack slot indices:
+
+- **Structure**: `Table scopeTable` mapping identifier strings (`ObjString*`) to a linked list or dynamic stack of integer slot numbers `[slot_depth_0, slot_depth_1, ...]`.
+- **Operations**:
+  1. **Variable Declaration (`addLocal`)**: When local `x` is declared at stack slot $S$, we look up `"x"` in `scopeTable` and push slot $S$ to the top of `"x"`'s stack.
+  2. **Variable Resolution (`resolveLocal`)**: To resolve `x`, we query `scopeTable.get("x")`. The top value of the stack gives the innermost stack slot index in **$O(1)$ average time**!
+  3. **Scope Exit (`endScope`)**: When leaving a block, as locals are popped, we pop their slot indices from `scopeTable`. If a variable's stack becomes empty, we remove the key from `scopeTable`.
+
+##### 2. Trade-off Analysis: Is the Additional Complexity Worth It?
+
+**NO, for an interpreter compiler like `clox`, the extra complexity is NOT worth it.**
+
+- **Small Variable Count in Human Code**: Well-written functions rarely exceed 10 to 30 local variables. Scanning a contiguous array of 20 `Local` structs in CPU L1 cache takes less than 15 nanoseconds—far faster than hashing a string and probing a hash table!
+- **Zero Overhead on Scope Exit**: With a simple array, `endScope()` cleans up all out-of-scope locals in 1 CPU instruction (`compiler->localCount -= count;`). With a hash table, `endScope()` requires removing entries or popping stack nodes for every out-of-scope variable.
+- **Cache Line Locality & Simplicity**: The `Local locals[256]` array is a dense contiguous memory block stored directly inside the `Compiler` struct. Pointer chasing in heap-allocated hash tables introduces cache misses and allocation overhead.
+
 ---
 
 ### 2.
