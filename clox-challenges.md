@@ -1634,7 +1634,68 @@ enclosing loop, skipping the rest of the loop body. Inside a `for` loop, a
 time error to have a `continue` statement not enclosed in a loop.
 Make sure to think about scope. What should happen to local variables
 declared inside the body of the loop or in blocks nested inside the loop
-when a `continue` is executed?
+#### Answer:
+
+##### 1. Tracking Enclosing Loops (`clox/compiler.c`):
+
+To track enclosing loops for nested structures and know where to jump when `continue` executes, we defined a `Loop` linked stack structure:
+
+```c
+typedef struct Loop {
+  struct Loop *enclosing;
+  int startOffset;
+  int scopeDepth;
+} Loop;
+```
+
+We added `Loop *loop;` to the `Compiler` struct (initialized to `NULL` in `initCompiler()`).
+
+##### 2. Handling Scope and Local Variables on `continue`:
+
+When `continue` is executed inside a loop body or nested blocks within the loop body, any local variables declared in scopes deeper than `loop.scopeDepth` must be popped off the VM evaluation stack before jumping back.
+
+```c
+static void continueStatement() {
+  if (current->loop == NULL) {
+    error("Can't use 'continue' outside of a loop.");
+    return;
+  }
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+
+  // Discard local variables created inside the loop body or nested blocks
+  for (int i = current->localCount - 1; i >= 0; i--) {
+    if (current->locals[i].depth <= current->loop->scopeDepth) {
+      break;
+    }
+    emitByte(OP_POP);
+  }
+
+  emitLoop(current->loop->startOffset);
+}
+```
+
+##### 3. Integration in `while` and `for` Loops (`clox/compiler.c`):
+
+- **In `whileStatement()`**: `loop.startOffset` points to the start of condition evaluation.
+- **In `forStatement()`**: `loop.startOffset` points to the start of the increment clause (if present) or condition clause (if no increment clause exists).
+
+```c
+  Loop loop;
+  loop.enclosing = current->loop;
+  loop.startOffset = loopStart;
+  loop.scopeDepth = current->scopeDepth;
+  current->loop = &loop;
+
+  statement();
+  emitLoop(loopStart);
+
+  current->loop = loop.enclosing;
+```
+
+##### 4. Scanner Keyword (`clox/scanner.h`, `clox/scanner.c`):
+
+Added `TOKEN_CONTINUE` enum value and updated the identifier keyword trie under `'c' → 'o' → 'n'` to match `"const"` (5 chars) vs `"continue"` (8 chars).
 
 ---
 

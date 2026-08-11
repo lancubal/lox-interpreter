@@ -65,6 +65,12 @@ typedef enum {
   TYPE_SCRIPT
 } FunctionType;
 
+typedef struct Loop {
+  struct Loop *enclosing;
+  int startOffset;
+  int scopeDepth;
+} Loop;
+
 typedef struct Compiler {
   struct Compiler *enclosing;
   ObjFunction *function;
@@ -73,6 +79,7 @@ typedef struct Compiler {
   int localCount;
   Upvalue upvalues[UINT8_COUNT];
   int scopeDepth;
+  Loop *loop;
 } Compiler;
 
 typedef struct ClassCompiler {
@@ -149,7 +156,7 @@ static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
 
   int offset = currentChunk()->count - loopStart + 2;
-  if (offset < UINT16_MAX)
+  if (offset > UINT16_MAX)
     error("Loop body too large.");
 
   emitByte((offset >> 8) & 0xff);
@@ -211,6 +218,7 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  compiler->loop = NULL;
   compiler->function = newFunction();
   current = compiler;
 
@@ -843,8 +851,16 @@ static void forStatement() {
     patchJump(bodyJump);
   }
 
+  Loop loop;
+  loop.enclosing = current->loop;
+  loop.startOffset = loopStart;
+  loop.scopeDepth = current->scopeDepth;
+  current->loop = &loop;
+
   statement();
   emitLoop(loopStart);
+
+  current->loop = loop.enclosing;
 
   if (exitJump != -1) {
     patchJump(exitJump);
@@ -852,6 +868,25 @@ static void forStatement() {
   }
 
   endScope();
+}
+
+static void continueStatement() {
+  if (current->loop == NULL) {
+    error("Can't use 'continue' outside of a loop.");
+    return;
+  }
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+
+  // Discard local variables created inside the loop body or nested blocks
+  for (int i = current->localCount - 1; i >= 0; i--) {
+    if (current->locals[i].depth <= current->loop->scopeDepth) {
+      break;
+    }
+    emitByte(OP_POP);
+  }
+
+  emitLoop(current->loop->startOffset);
 }
 
 static void ifStatement() {
@@ -903,8 +938,17 @@ static void whileStatement() {
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
+
+  Loop loop;
+  loop.enclosing = current->loop;
+  loop.startOffset = loopStart;
+  loop.scopeDepth = current->scopeDepth;
+  current->loop = &loop;
+
   statement();
   emitLoop(loopStart);
+
+  current->loop = loop.enclosing;
 
   patchJump(exitJump);
   emitByte(OP_POP);
@@ -1040,6 +1084,8 @@ static void switchStatement() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
+  } else if (match(TOKEN_CONTINUE)) {
+    continueStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
   } else if (match(TOKEN_IF)) {
