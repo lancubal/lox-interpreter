@@ -2355,6 +2355,92 @@ When the sweep phase traverses a live object, it clears the isMarked
 field to prepare it for the next collection cycle. Can you come up with
 a more efficient approach?
 
+#### Answer:
+
+##### 1. Problem with the Default Clearing Approach:
+In standard `clox`, `sweep()` iterates over every object in `vm.objects`. If an object is marked live (`isMarked == true`), `sweep()` explicitly resets `isMarked` back to `false`:
+```c
+if (object->isMarked) {
+  object->isMarked = false; // Writes to memory for every live object
+  previous = object;
+  object = object->next;
+}
+```
+
+**Drawbacks**:
+- **Unnecessary Memory Writes & Cache Invalidation**: Explicitly clearing `isMarked` forces CPU cache lines for *all* surviving objects into a dirty/modified state (`MESI` protocol). This triggers memory bus write-backs even for cold, immutable objects.
+- **Copy-on-Write Page Faults**: In multi-process or shared memory environments, mutating header flags on every GC pass invalidates shared Copy-on-Write pages.
+
+---
+
+##### 2. Optimizing `sweep()` with Mark Color Toggling (Epoch-Based Marking):
+
+Instead of treating `isMarked` as a boolean (`true`/`false`), we introduce a global **mark color / epoch flag** in `VM`:
+
+1. **Global Mark Color (`vm.markColor`)**:
+   Add a boolean `markColor` field to the VM state, initialized to `true`:
+   ```c
+   typedef struct {
+     // ...
+     bool markColor; // Toggled at the end of each GC cycle
+   } VM;
+   ```
+
+2. **Mark Phase**:
+   When marking reachable objects (`markObject`), set `isMarked` to `vm.markColor` instead of `true`:
+   ```c
+   void markObject(Obj *object) {
+     if (object == NULL || object->isMarked == vm.markColor) return;
+     object->isMarked = vm.markColor;
+     // Add to gray stack...
+   }
+   ```
+
+3. **Sweep Phase**:
+   An object is **live** if `object->isMarked == vm.markColor`. An object is **dead** (garbage) if `object->isMarked != vm.markColor`:
+   ```c
+   static void sweep() {
+     Obj *previous = NULL;
+     Obj *object = vm.objects;
+     while (object != NULL) {
+       if (object->isMarked == vm.markColor) {
+         // Live object: DO NOT WRITE TO object->isMarked!
+         previous = object;
+         object = object->next;
+       } else {
+         // Dead object: Unlink and free
+         Obj *unreached = object;
+         object = object->next;
+         if (previous != NULL) {
+           previous->next = object;
+         } else {
+           vm.objects = object;
+         }
+         freeObject(unreached);
+       }
+     }
+   }
+   ```
+
+4. **Post-GC Color Toggle ($O(1)$)**:
+   At the end of `collectGarbage()`, simply toggle the global color:
+   ```c
+   vm.markColor = !vm.markColor;
+   ```
+
+5. **New Allocation Initialization**:
+   Newly allocated objects initialize `isMarked` to `!vm.markColor` so they are initially considered "unmarked" for the next collection pass.
+
+---
+
+##### 3. Alternative Strategies:
+
+###### Approach B: GC Epoch Counter (`uint8_t gcEpoch`)
+Store a `uint8_t gcEpoch` inside `struct Obj` and increment `vm.gcEpoch` on each GC run. Objects are live if `obj->gcEpoch == vm.gcEpoch`. On epoch overflow (every 256 GC cycles), a single reset pass resets all headers.
+
+###### Approach C: Out-of-Line Mark Bitmaps
+Maintain mark bits in a separate, contiguous bitmap array allocated out-of-band rather than inline in object headers. Resetting the mark state for the entire heap reduces to a single $O(1)$ pointer swap between active/inactive mark bitmaps or an ultra-fast `memset(bitmap, 0, bytes)`.
+
 ---
 
 ### 3.
