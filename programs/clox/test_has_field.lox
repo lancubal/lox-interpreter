@@ -1,0 +1,18 @@
+// Test for missing field introspection in clox (Chapter 27 Challenge 1)
+
+class Foo {}
+
+var foo = Foo();
+foo.bar = 100;
+
+print "hasField bar:";
+print hasField(foo, "bar"); // true
+
+print "hasField baz:";
+print hasField(foo, "baz"); // false
+
+print "getField bar:";
+print getField(foo, "bar"); // 100
+
+print "getField baz:";
+print getField(foo, "baz"); // nil

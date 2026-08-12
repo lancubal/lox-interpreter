@@ -128,6 +128,49 @@ static bool typeNative(int argCount, Value *args, Value *result) {
   return true;
 }
 
+static bool hasFieldNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_INSTANCE(args[0])) {
+    runtimeError("First argument to hasField() must be an instance.");
+    return false;
+  }
+  if (!IS_STRING(args[1])) {
+    runtimeError("Second argument to hasField() must be a string field name.");
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(args[0]);
+  ObjString *name = AS_STRING(args[1]);
+
+  Value dummy;
+  bool exists = tableGet(&instance->fields, OBJ_VAL(name), &dummy);
+  *result = BOOL_VAL(exists);
+  return true;
+}
+
+static bool getFieldNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_INSTANCE(args[0])) {
+    runtimeError("First argument to getField() must be an instance.");
+    return false;
+  }
+  if (!IS_STRING(args[1])) {
+    runtimeError("Second argument to getField() must be a string field name.");
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(args[0]);
+  ObjString *name = AS_STRING(args[1]);
+
+  Value val;
+  if (tableGet(&instance->fields, OBJ_VAL(name), &val)) {
+    *result = val;
+  } else {
+    *result = NIL_VAL;
+  }
+  return true;
+}
+
 static void resetStack() {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
@@ -189,6 +232,8 @@ void initVM() {
   defineNative("ceil", ceilNative, 1);
   defineNative("str", strNative, 1);
   defineNative("type", typeNative, 1);
+  defineNative("hasField", hasFieldNative, 2);
+  defineNative("getField", getFieldNative, 2);
 }
 
 void freeVM() {

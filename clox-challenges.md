@@ -2512,6 +2512,89 @@ It’s up to the user to ensure on their own that only valid fields are read.
 How do other dynamically typed languages handle missing fields?
 What do you think Lox should do? Implement your solution.
 
+#### Answer:
+
+##### 1. How Other Dynamically Typed Languages Handle Missing Fields:
+- **JavaScript**: Accessing a missing property on an object (e.g. `obj.foo`) evaluates to `undefined` rather than throwing a runtime error. JS also provides introspection via `"foo" in obj` or `Object.hasOwn(obj, "foo")`.
+- **Python**: Reading a missing attribute (e.g. `obj.foo`) raises an `AttributeError` exception. Python provides built-in reflection functions `hasattr(obj, "foo")` and `getattr(obj, "foo", default)`.
+- **Ruby**: Calling a missing getter raises `NoMethodError`. Ruby provides `obj.respond_to?(:foo)` or `obj.instance_variable_defined?(:@foo)`.
+
+##### 2. What Lox Should Do:
+Since Lox lacks exception handling (`try`/`catch`), an unrecoverable runtime error on `obj.missingField` terminates the entire program execution. 
+
+To give Lox users clean introspection and safe field access capabilities without altering standard property access error mechanics, we implemented two built-in native functions: `hasField(instance, fieldName)` and `getField(instance, fieldName)`.
+
+##### 3. Implementation Details (`clox/vm.c`):
+
+1. **`hasField(instance, fieldName)` Native Function**:
+   Checks whether `instance` contains `fieldName` in its internal fields hash table (`instance->fields`):
+   ```c
+   static bool hasFieldNative(int argCount, Value *args, Value *result) {
+     if (!IS_INSTANCE(args[0])) {
+       runtimeError("First argument to hasField() must be an instance.");
+       return false;
+     }
+     if (!IS_STRING(args[1])) {
+       runtimeError("Second argument to hasField() must be a string field name.");
+       return false;
+     }
+
+     ObjInstance *instance = AS_INSTANCE(args[0]);
+     ObjString *name = AS_STRING(args[1]);
+
+     Value dummy;
+     bool exists = tableGet(&instance->fields, OBJ_VAL(name), &dummy);
+     *result = BOOL_VAL(exists);
+     return true;
+   }
+   ```
+
+2. **`getField(instance, fieldName)` Native Function**:
+   Safely retrieves the field value if present, or returns `nil` if the field is not defined:
+   ```c
+   static bool getFieldNative(int argCount, Value *args, Value *result) {
+     if (!IS_INSTANCE(args[0])) {
+       runtimeError("First argument to getField() must be an instance.");
+       return false;
+     }
+     if (!IS_STRING(args[1])) {
+       runtimeError("Second argument to getField() must be a string field name.");
+       return false;
+     }
+
+     ObjInstance *instance = AS_INSTANCE(args[0]);
+     ObjString *name = AS_STRING(args[1]);
+
+     Value val;
+     if (tableGet(&instance->fields, OBJ_VAL(name), &val)) {
+       *result = val;
+     } else {
+       *result = NIL_VAL;
+     }
+     return true;
+   }
+   ```
+
+##### 4. Verification (`programs/clox/test_has_field.lox`):
+```lox
+class Foo {}
+
+var foo = Foo();
+foo.bar = 100;
+
+print hasField(foo, "bar"); // true
+print hasField(foo, "baz"); // false
+print getField(foo, "bar"); // 100
+print getField(foo, "baz"); // nil
+```
+Output:
+```
+true
+false
+100
+nil
+```
+
 ---
 
 ### 2.
