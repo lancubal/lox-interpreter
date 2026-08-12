@@ -2989,5 +2989,58 @@ That is a language choice that affects the performance of our
 implementation. Was it the right choice? If Lox were your language,
 what would you do?
 
+#### Answer:
+
+##### 1. The Performance Cost in `OP_INVOKE`
+In `clox`, the implementation of `OP_INVOKE` is written as:
+```c
+if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+  vm.stackTop[-argCount - 1] = value;
+  return callValue(value, argCount);
+}
+return invokeFromClass(instance->klass, name, argCount);
+```
+Because Lox allows fields to shadow methods (e.g. `instance.fnField = fun() { ... }`), `OP_INVOKE` must first check `instance->fields` for a field matching `name`. In real-world software, $>99\%$ of method invocations target actual class methods defined on `instance->klass`, NOT fields containing function objects. Therefore, the first `tableGet` lookup almost always **fails**, penalizing every single method call with an unnecessary failed hash table lookup before attempting the real method lookup.
+
+---
+
+##### 2. Critical Evaluation: Was it the Right Choice for Lox?
+
+- **Arguments FOR the Lox Choice (JavaScript / Python Style)**:
+  - **First-Class Functions**: Makes functions first-class objects where methods and fields share a unified namespace.
+  - **Dynamic Flexibility**: Allows per-instance method patching/overriding (e.g., `button.onClick = fun() { ... }`) without subclassing.
+
+- **Arguments AGAINST the Lox Choice (Performance & Safety Penalties)**:
+  - **Double Lookup Overhead**: Unnecessarily slows down every method call in the VM interpreter.
+  - **Accidental Shadowing Bugs**: Setting a field named `init` or `draw` on an instance silently breaks calls to `instance.init()` or `instance.draw()`.
+  - **Compiler/JIT Complexity**: Impairs fast vtable indexing and speculative monomorphic inlining because any instance could dynamically override any method at any time.
+
+---
+
+##### 3. Language & VM Design Recommendations (What I would do)
+
+If Lox were my language, I would optimize using one of the following approaches:
+
+###### Option A: Language-Level Fix — Separate Namespaces (Recommended for New Languages)
+- Disallow fields from shadowing methods.
+- Method invocation `obj.method()` always resolves directly to `obj->klass->methods`, requiring **only 1 lookup** (or 1 direct vtable / Inline Cache jump).
+- If a user stores a function inside a field (`obj.field`), invoking it requires fetching the field first: `(obj.field)()` or `obj.field.call()`.
+- **Languages using this**: C++, Java, C#, Ruby.
+
+###### Option B: Engine-Level Optimization — Shape Flag / Function-Field Bitmask (Zero Language Breaking Changes)
+If we must preserve Lox's language semantics where fields shadow methods:
+1. Add a `bool hasFunctionFields` flag to `ObjInstance` (or track function fields in `ObjClass`/`Shape`).
+2. Initially `instance->hasFunctionFields = false`.
+3. Only when `setField(instance, name, val)` assigns a function or closure to a field, set `instance->hasFunctionFields = true`.
+4. In `OP_INVOKE`:
+   ```c
+   if (instance->hasFunctionFields && tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+     vm.stackTop[-argCount - 1] = value;
+     return callValue(value, argCount);
+   }
+   return invokeFromClass(instance->klass, name, argCount);
+   ```
+   For $>99\%$ of objects, `instance->hasFunctionFields` is `false`, bypassing the first `tableGet` lookup completely and executing **only 1 hash table lookup** per method call!
+
 
 
