@@ -3060,6 +3060,76 @@ fields and possibly leave you with an instance in a broken state.
 If Lox was your language, how would you address this, if at all? If you
 would change the language, implement your change.
 
+#### Answer:
+
+##### 1. Problem & Invariant Corruption in Inheritance Chains:
+In default Lox, an instance's fields are stored in a single flat hash table (`instance->fields`). If a superclass `Base` initializes `this.id = 10` and a subclass `Derived < Base` initializes `this.id = "subclass_id"`, `Derived` overwrites `Base`'s field in `instance->fields`. When a method inherited from `Base` attempts to read `this.id` expecting an integer, it encounters `"subclass_id"`, breaking class invariants and causing runtime failures.
+
+##### 2. Design Strategy: Class Name Mangling for Private Fields (Python/JS Style):
+To prevent field collision across inheritance hierarchies while maintaining dynamic flexibility:
+- Fields starting with an underscore `_` (e.g. `this._id`) are treated as **private class fields**.
+- When `compiler.c` compiles a property access `this._field` inside a class body (`currentClass != NULL`), it automatically mangles the field constant to `"ClassName._field"`.
+- As a result, `Base`'s `this._id` becomes key `"Base._id"`, and `Derived`'s `this._id` becomes key `"Derived._id"`.
+- Both classes can safely manage private state under identical field names without stepping on each other's fields. Public fields (without `_`) remain shared across the hierarchy.
+
+##### 3. Implementation Details (`clox/compiler.c`):
+
+1. **Track `className` in `ClassCompiler`**:
+   ```c
+   typedef struct ClassCompiler {
+     struct ClassCompiler *enclosing;
+     Token name;
+     bool hasSuperclass;
+   } ClassCompiler;
+   ```
+
+2. **Name Mangling in `dot()`**:
+   ```c
+   static void dot(bool canAssign) {
+     consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+     Token nameToken = parser.previous;
+     uint8_t name;
+
+     if (currentClass != NULL && nameToken.length > 1 && nameToken.start[0] == '_') {
+       char mangled[256];
+       int mangledLen = snprintf(mangled, sizeof(mangled), "%.*s.%.*s",
+                                 currentClass->name.length, currentClass->name.start,
+                                 nameToken.length, nameToken.start);
+       ObjString *mangledString = copyString(mangled, mangledLen);
+       name = makeConstant(OBJ_VAL(mangledString));
+     } else {
+       name = identifierConstant(&nameToken);
+     }
+     ...
+   }
+   ```
+
+##### 4. Verification (`programs/clox/test_private_fields.lox`):
+```lox
+class Base {
+  init(id) {
+    this._id = id;
+  }
+  getBaseId() {
+    return this._id;
+  }
+}
+
+class Derived < Base {
+  init(baseId, derivedId) {
+    super.init(baseId);
+    this._id = derivedId;
+  }
+  getDerivedId() {
+    return this._id;
+  }
+}
+
+var obj = Derived(100, "Derived Secret");
+print obj.getBaseId();    // Prints 100 ("Base._id")
+print obj.getDerivedId(); // Prints "Derived Secret" ("Derived._id")
+```
+
 ---
 
 ### 2.

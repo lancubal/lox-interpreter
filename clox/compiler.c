@@ -84,6 +84,7 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler *enclosing;
+  Token name;
   bool hasSuperclass;
 } ClassCompiler;
 
@@ -472,7 +473,19 @@ static void call(bool canAssign) {
 
 static void dot(bool canAssign) {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-  uint8_t name = identifierConstant(&parser.previous);
+  Token nameToken = parser.previous;
+  uint8_t name;
+
+  if (currentClass != NULL && nameToken.length > 1 && nameToken.start[0] == '_') {
+    char mangled[256];
+    int mangledLen = snprintf(mangled, sizeof(mangled), "%.*s.%.*s",
+                              currentClass->name.length, currentClass->name.start,
+                              nameToken.length, nameToken.start);
+    ObjString *mangledString = copyString(mangled, mangledLen);
+    name = makeConstant(OBJ_VAL(mangledString));
+  } else {
+    name = identifierConstant(&nameToken);
+  }
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
@@ -761,6 +774,7 @@ static void classDeclaration() {
   defineVariable(nameConstant);
 
   ClassCompiler classCompiler;
+  classCompiler.name = className;
   classCompiler.hasSuperclass = false;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
