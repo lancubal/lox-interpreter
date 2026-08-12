@@ -2604,6 +2604,74 @@ user program cannot imperatively build a string value and then use that
 as the name of a field. Do you think they should be able to? Devise a
 language feature that enables that and implement it.
 
+#### Answer:
+
+##### 1. Language Feature Rationale:
+In dynamically typed programming languages (such as JavaScript, Python, and Ruby), imperatively building or formatting field names as strings at runtime (e.g. `obj["field_" + str(i)]` or `setattr(obj, name, val)`) is essential for:
+- **Serialization / Deserialization**: Dynamically instantiating objects from JSON/XML objects or CSV rows.
+- **ORMs & Database Binding**: Mapping SQL column names to object attributes.
+- **Metaprogramming & Dynamic Forms**: Programmatically building data structures without hardcoding static identifier tokens.
+
+Lox should support dynamic field access.
+
+##### 2. Implementation (`setField(instance, name, value)` in `clox/vm.c`):
+Combined with `getField(instance, name)` (from Challenge 1), we added the built-in native function `setField(instance, name, value)`:
+
+```c
+static bool setFieldNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_INSTANCE(args[0])) {
+    runtimeError("First argument to setField() must be an instance.");
+    return false;
+  }
+  if (!IS_STRING(args[1])) {
+    runtimeError("Second argument to setField() must be a string field name.");
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(args[0]);
+  ObjString *name = AS_STRING(args[1]);
+  Value value = args[2];
+
+  tableSet(&instance->fields, OBJ_VAL(name), value);
+  *result = value;
+  return true;
+}
+```
+
+Registered in `initVM()`:
+```c
+defineNative("setField", setFieldNative, 3);
+```
+
+##### 3. Verification (`programs/clox/test_dynamic_fields.lox`):
+```lox
+class Person {}
+
+var p = Person();
+
+// Imperatively build string field names and set values
+for (var i = 1; i <= 3; i = i + 1) {
+  setField(p, "attr_" + str(i), i * 100);
+}
+
+// Imperatively read back computed fields
+for (var i = 1; i <= 3; i = i + 1) {
+  var name = "attr_" + str(i);
+  print name + ":";
+  print getField(p, name);
+}
+```
+Output:
+```
+attr_1:
+100
+attr_2:
+200
+attr_3:
+300
+```
+
 ---
 
 ### 3.
