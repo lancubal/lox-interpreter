@@ -143,11 +143,11 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
     }
   }
   if (newSize == 0) {
-    customFree(pointer);
+    free(pointer);
     return NULL;
   }
 
-  void *result = customRealloc(pointer, oldSize, newSize);
+  void *result = realloc(pointer, newSize);
   if (result == NULL)
     exit(1);
   return result;
@@ -266,6 +266,8 @@ static void traceReferences() {
   }
 }
 
+static void freeObject(Obj *object);
+
 static void sweep() {
   Obj *previous = NULL;
   Obj *object = vm.objects;
@@ -283,7 +285,7 @@ static void sweep() {
         vm.objects = object;
       }
 
-      freeObjects();
+      freeObject(unreached);
     }
   }
 }
@@ -314,7 +316,7 @@ static void freeObject(Obj *object) {
 #endif
   switch (object->type) {
   case OBJ_BOUND_METHOD: {
-    FREE(OBJ_BOUND_METHOD, object);
+    FREE(ObjBoundMethod, object);
     break;
   }
   case OBJ_CLASS: {
@@ -326,11 +328,13 @@ static void freeObject(Obj *object) {
   case OBJ_INSTANCE: {
     ObjInstance *instance = (ObjInstance *)object;
     freeTable(&instance->fields);
-    FREE(OBJ_INSTANCE, object);
+    FREE(ObjInstance, object);
     break;
   }
   case OBJ_CLOSURE: {
-    FREE(OBJ_CLOSURE, object);
+    ObjClosure *closure = (ObjClosure *)object;
+    FREE_ARRAY(ObjUpvalue *, closure->upvalues, closure->upvalueCount);
+    FREE(ObjClosure, object);
     break;
   }
   case OBJ_FUNCTION: {
@@ -352,8 +356,6 @@ static void freeObject(Obj *object) {
     break;
   }
   case OBJ_UPVALUE: {
-    ObjClosure *closure = (ObjClosure *)object;
-    FREE_ARRAY(ObjUpvalue *, closure->upvalues, closure->upvalueCount);
     FREE(ObjUpvalue, object);
     break;
   }
@@ -368,5 +370,5 @@ void freeObjects() {
     object = next;
   }
 
-  customFree(vm.stack);
+  free(vm.grayStack);
 }

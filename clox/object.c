@@ -42,7 +42,7 @@ ObjClass *newClass(ObjString *name) {
 }
 
 ObjClosure *newClosure(ObjFunction *function) {
-
+  push(OBJ_VAL(function));
   ObjUpvalue **upvalues = ALLOCATE(ObjUpvalue *, function->upvalueCount);
 
   for (int i = 0; i < function->upvalueCount; i++) {
@@ -53,8 +53,7 @@ ObjClosure *newClosure(ObjFunction *function) {
   closure->function = function;
   closure->upvalues = upvalues;
   closure->upvalueCount = function->upvalueCount;
-  closure->upvalues = upvalues;
-  closure->upvalueCount = function->upvalueCount;
+  pop();
   return closure;
 }
 
@@ -134,6 +133,7 @@ ObjUpvalue *newUpvalue(Value *slot) {
 static void printFunction(ObjFunction *function) {
   if (function->name == NULL) {
     printf("<script>");
+    return;
   }
   printf("<fn %s>", function->name->chars);
 }

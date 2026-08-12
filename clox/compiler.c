@@ -724,15 +724,18 @@ static void function(FunctionType type) {
   block();
 
   ObjFunction *function = endCompiler();
+  push(OBJ_VAL(function));
+  uint8_t constant = makeConstant(OBJ_VAL(function));
   if (function->upvalueCount == 0) {
-    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+    emitBytes(OP_CONSTANT, constant);
   } else {
-    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+    emitBytes(OP_CLOSURE, constant);
     for (int i = 0; i < function->upvalueCount; i++) {
       emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
       emitByte(compiler.upvalues[i].index);
     }
   }
+  pop();
 }
 
 static void method() {
@@ -808,7 +811,7 @@ static void varDeclaration() {
   if (match(TOKEN_EQUAL)) {
     expression();
   } else {
-    emitByte(TOKEN_NIL);
+    emitByte(OP_NIL);
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
   defineVariable(global);
@@ -823,10 +826,26 @@ static void expressionStatement() {
 static void forStatement() {
   beginScope();
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  int varSlot = -1;
+  Token varToken;
+  bool isVar = false;
+
   if (match(TOKEN_SEMICOLON)) {
     // No initializer
   } else if (match(TOKEN_VAR)) {
-    varDeclaration();
+    isVar = true;
+    uint8_t global = parseVariable("Expect variable name");
+    varToken = parser.previous;
+    if (match(TOKEN_EQUAL)) {
+      expression();
+    } else {
+      emitByte(OP_NIL);
+    }
+    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
+    defineVariable(global);
+    if (current->scopeDepth > 0) {
+      varSlot = current->localCount - 1;
+    }
   } else {
     expressionStatement();
   }
@@ -837,7 +856,7 @@ static void forStatement() {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
 
-    // Jump out of the lopp if the condition is false
+    // Jump out of the loop if the condition is false
     exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP); // Condition
   }
@@ -860,7 +879,33 @@ static void forStatement() {
   loop.scopeDepth = current->scopeDepth;
   current->loop = &loop;
 
+  int iterSlot = -1;
+  if (isVar && varSlot != -1) {
+    beginScope();
+    if (varSlot < 256) {
+      emitBytes(OP_GET_LOCAL, (uint8_t)varSlot);
+    } else {
+      emitByte(OP_GET_LOCAL_LONG);
+      emitByte((uint8_t)(varSlot & 0xff));
+      emitByte((uint8_t)((varSlot >> 8) & 0xff));
+      emitByte((uint8_t)((varSlot >> 16) & 0xff));
+    }
+    addLocal(varToken);
+    markInitialized();
+    iterSlot = current->localCount - 1;
+  }
+
   statement();
+
+  if (isVar && varSlot != -1) {
+    if (iterSlot < 256 && varSlot < 256) {
+      emitBytes(OP_GET_LOCAL, (uint8_t)iterSlot);
+      emitBytes(OP_SET_LOCAL, (uint8_t)varSlot);
+      emitByte(OP_POP);
+    }
+    endScope();
+  }
+
   emitLoop(loopStart);
 
   current->loop = loop.enclosing;

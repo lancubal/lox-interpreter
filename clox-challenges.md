@@ -2129,6 +2129,59 @@ Read the design note below. I’ll wait. Now, how do you think Lox
 should behave? Change the implementation to create a new variable
 for each loop iteration.
 
+#### Answer:
+
+##### Problem & Behavior Analysis:
+In standard C-style `for (var i = 0; i < N; i = i + 1)` loops, the loop variable `i` is declared once outside the loop body and mutated on each iteration. If closures created inside the loop body capture `i`, they all share a reference to the same memory slot, which ultimately holds the final value after loop termination.
+
+In modern language designs (e.g. ECMAScript 6 `let` in `for` loops), each iteration creates a fresh variable initialized with the value from the previous iteration. Closures captured inside the loop body capture their respective iteration's unique variable instance.
+
+##### Implementation Details (`clox/compiler.c`):
+We modified `forStatement()` in `clox/compiler.c` to introduce a per-iteration local variable scope (`iterSlot`):
+
+1. **Outer Variable Slot (`varSlot`)**:
+   `for (var a = 1; ...)` declares `a` in the loop's outer scope (`varSlot`).
+
+2. **Per-Iteration Scope & Copy (`iterSlot`)**:
+   At the start of each iteration body, we `beginScope()`, copy the current value of `varSlot` (`OP_GET_LOCAL varSlot`), and declare a per-iteration local variable (`addLocal(varToken)` $\rightarrow$ `iterSlot`).
+
+3. **Loop Body Execution**:
+   Any closure compiled inside the loop body resolves `a` to `iterSlot`.
+
+4. **Iterative Sync & Upvalue Closure**:
+   At the end of the iteration body:
+   - The value of `iterSlot` is copied back to `varSlot` (`OP_GET_LOCAL iterSlot`, `OP_SET_LOCAL varSlot`, `OP_POP`).
+   - `endScope()` is called for the iteration scope. If `iterSlot` was captured by a closure inside the loop body, `endScope()` emits `OP_CLOSE_UPVALUE`, closing `iterSlot`'s upvalue and preserving its value on the heap for that iteration's closure.
+
+##### Verification:
+Tested with `programs/clox/loop_closure_test.lox` and `programs/clox/test_simple_closure.lox`:
+```lox
+var globalOne;
+var globalTwo;
+
+fun main() {
+  for (var a = 1; a <= 2; a = a + 1) {
+    fun closure() {
+      print a;
+    }
+    if (globalOne == nil) {
+      globalOne = closure;
+    } else {
+      globalTwo = closure;
+    }
+  }
+}
+
+main();
+globalOne(); // Output: 1
+globalTwo(); // Output: 2
+```
+Output:
+```
+1
+2
+```
+
 ---
 
 ### 3.
