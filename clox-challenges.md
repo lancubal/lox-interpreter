@@ -1104,7 +1104,7 @@ A comparative analysis of hash table implementations across major open-source sy
 | :--- | :--- | :--- | :--- | :--- |
 | **Google Swiss Tables** | Open Addressing | 16-byte SIMD Control Vector | 87.5% | L1/L2 Cache Locality & SIMD Parallelism |
 | **CPython `dict`** | Open Addressing | Sparse Index Array + Dense Entries | 66.6% | Low RAM Footprint & Preserved Insertion Order |
-| **Java `HashMap`** | Separate Chaining | Linked List $\rightarrow$ Red-Black Tree ($N \ge 8$) | 75.0% | HashDoS Attack Defense & Pointer Stability |
+| **Java `HashMap`** | Separate Chaining | Linked List → Red-Black Tree ($N \ge 8$) | 75.0% | HashDoS Attack Defense & Pointer Stability |
 | **Linux Kernel** | Separate Chaining | Intrusive Doubly-Linked Head/Node | N/A | Zero Heap Allocation & Memory Safety |
 | **`clox` Table** | Open Addressing | Linear Probing with Tombstones | 75.0% | Implementation Simplicity & Cache Alignment |
 
@@ -2108,8 +2108,8 @@ During function compilation, if `function->upvalueCount == 0`, `compiler.c` emit
 ##### 3. Dynamic Dispatch in `callValue()` (`clox/vm.c`):
 
 `callValue()` branches based on object type:
-- `OBJ_FUNCTION` $\rightarrow$ `callFunction(function, argCount)` (sets `frame->closure = NULL`).
-- `OBJ_CLOSURE` $\rightarrow$ `callClosure(closure, argCount)` (sets `frame->closure = closure`).
+- `OBJ_FUNCTION` → `callFunction(function, argCount)` (sets `frame->closure = NULL`).
+- `OBJ_CLOSURE` → `callClosure(closure, argCount)` (sets `frame->closure = closure`).
 
 ##### 4. Benchmark & Performance Comparisons:
 
@@ -2143,7 +2143,7 @@ We modified `forStatement()` in `clox/compiler.c` to introduce a per-iteration l
    `for (var a = 1; ...)` declares `a` in the loop's outer scope (`varSlot`).
 
 2. **Per-Iteration Scope & Copy (`iterSlot`)**:
-   At the start of each iteration body, we `beginScope()`, copy the current value of `varSlot` (`OP_GET_LOCAL varSlot`), and declare a per-iteration local variable (`addLocal(varToken)` $\rightarrow$ `iterSlot`).
+   At the start of each iteration body, we `beginScope()`, copy the current value of `varSlot` (`OP_GET_LOCAL varSlot`), and declare a per-iteration local variable (`addLocal(varToken)` → `iterSlot`).
 
 3. **Loop Body Execution**:
    Any closure compiled inside the loop body resolves `a` to `iterSlot`.
