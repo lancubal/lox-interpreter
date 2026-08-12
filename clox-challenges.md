@@ -2929,6 +2929,53 @@ says they can be.
 How do advanced language implementations optimize based on that
 observation?
 
+#### Answer:
+
+The empirical observation that $>90\%$ of method call sites in dynamic programming languages are **monomorphic** (they invoke the exact same method on instances of the exact same class at that specific bytecode location) is the foundation of modern Virtual Machine optimization.
+
+High-performance language engines (such as V8 for JavaScript, PyPy for Python, Self, Smalltalk-80, and HotSpot JIT for Java) exploit monomorphism using three main techniques:
+
+---
+
+##### 1. Inline Caches (ICs) for Method Dispatch
+
+Instead of performing a full hash table method lookup on `receiver->klass->methods` on every call instruction:
+- **Monomorphic Inline Cache**:
+  The call instruction site caches the `expectedClass` pointer and `cachedMethod` closure:
+  ```c
+  if (receiverInstance->klass == cachedClass) {
+    // Instant direct call! Zero hash table lookups!
+    return callClosure(cachedMethod, argCount);
+  }
+  ```
+  If the receiver's class matches `cachedClass`, method dispatch executes in a single pointer comparison instruction ($O(1)$ with near-zero constant factor).
+
+- **Polymorphic Inline Cache (PIC)**:
+  If a call site encounters multiple receiver classes (e.g. `Square` and `Circle`), the IC expands to a small stub table of up to 4 entries: `(Class1, Method1), (Class2, Method2)`.
+
+- **Megamorphic IC**:
+  If more than 4-5 classes are seen at a single site, the call site reverts to a global lookup table or full dynamic hash table dispatch.
+
+---
+
+##### 2. Speculative Monomorphic Devirtualization
+
+When a Just-In-Time (JIT) compiler compiles bytecode into native machine code:
+1. **Class Guard**: It inserts a single fast CPU comparison instruction to verify that the receiver's class matches the monomorphic class recorded by the IC:
+   ```assembly
+   cmp [rdi + 8], PointClass ; Check if receiver->klass == PointClass
+   jne fallback_interpreter  ; Bail out if a new class is encountered
+   ```
+2. **Devirtualization**: Because the class is guaranteed, the JIT replaces the indirect dynamic call instruction with a direct assembly jump or call instruction to the target method.
+
+---
+
+##### 3. Method Inlining (Zero-Cost Inlining)
+
+Once a call site is devirtualized via a monomorphic class guard, the JIT compiler eliminates the function call instruction entirely by **inlining** the method's body directly into the calling context:
+- Eliminates stack frame allocation, argument pushing/popping, and call/return CPU instruction overhead.
+- Allows downstream compiler optimizations (such as constant propagation, loop-invariant code motion, and dead code elimination) to optimize across the method boundary as if the method code was written directly inside the caller.
+
 ---
 
 ### 3.
