@@ -1,0 +1,48 @@
+// Vector 2D object implementation using closures in Lox (Chapter 25 Challenge 3)
+
+fun Vector(x, y) {
+  fun dispatch(message) {
+    if (message == "x") return x;
+    if (message == "y") return y;
+    if (message == "add") {
+      fun addOther(other) {
+        return Vector(x + other("x"), y + other("y"));
+      }
+      return addOther;
+    }
+    if (message == "print") {
+      print "(" + str(x) + ", " + str(y) + ")";
+      return nil;
+    }
+    print "Error: Unknown method " + message;
+    return nil;
+  }
+  return dispatch;
+}
+
+// Instantiate vector objects
+var v1 = Vector(3, 4);
+var v2 = Vector(1, 2);
+
+print "v1.x:";
+print v1("x");
+
+print "v1.y:";
+print v1("y");
+
+print "v1:";
+v1("print");
+
+print "v2:";
+v2("print");
+
+print "v3 = v1 + v2:";
+var addFn = v1("add");
+var v3 = addFn(v2);
+v3("print");
+
+print "v3.x:";
+print v3("x");
+
+print "v3.y:";
+print v3("y");

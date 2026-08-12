@@ -2195,3 +2195,77 @@ program that models two-dimensional vector “objects”. It should:
   returned from that constructor.
 - Define an addition “method” that adds two vectors and produces
   a third.
+
+#### Answer:
+
+##### Lox Implementation (`programs/clox/vector_closure.lox`):
+Using closures to capture state (`x` and `y`) and returning a dispatch function that receives method names as arguments:
+
+```lox
+// Vector 2D object implementation using closures in Lox
+
+fun Vector(x, y) {
+  fun dispatch(message) {
+    if (message == "x") return x;
+    if (message == "y") return y;
+    if (message == "add") {
+      fun addOther(other) {
+        return Vector(x + other("x"), y + other("y"));
+      }
+      return addOther;
+    }
+    if (message == "print") {
+      print "(" + str(x) + ", " + str(y) + ")";
+      return nil;
+    }
+    print "Error: Unknown method " + message;
+    return nil;
+  }
+  return dispatch;
+}
+
+// Instantiate vector objects
+var v1 = Vector(3, 4);
+var v2 = Vector(1, 2);
+
+print "v1.x:";
+print v1("x");
+
+print "v1.y:";
+print v1("y");
+
+print "v1:";
+v1("print");
+
+print "v2:";
+v2("print");
+
+print "v3 = v1 + v2:";
+var addFn = v1("add");
+var v3 = addFn(v2);
+v3("print");
+
+print "v3.x:";
+print v3("x");
+
+print "v3.y:";
+print v3("y");
+```
+
+##### Output:
+```
+v1.x:
+3
+v1.y:
+4
+v1:
+(3, 4)
+v2:
+(1, 2)
+v3 = v1 + v2:
+(4, 6)
+v3.x:
+4
+v3.y:
+6
+```
