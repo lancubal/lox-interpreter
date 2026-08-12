@@ -3141,6 +3141,42 @@ Other languages, like Ruby, do allow classes to be modified after the
 fact. How do implementations of languages like that support class
 modification while keeping method resolution efficient?
 
+#### Answer:
+
+Copy-down inheritance (`tableAddAll(&superclass->methods, &subclass->methods)`) is a fast optimization in `clox` because class declarations are immutable after compilation. However, languages like Ruby, Smalltalk, JavaScript, and Python allow **late class modification** (*monkey-patching*), where methods can be added, updated, or removed from superclasses at any point during runtime execution.
+
+High-performance implementations of dynamically modifiable languages keep method resolution efficient using three core strategies:
+
+---
+
+##### 1. Global Method Serial Numbers / Class Version Counters (Epoch Invalidation)
+- **Class/Global Generation Tag**: The VM maintains a global integer counter `uint64_t globalMethodSerial` (or a per-class `uint32_t classVersion`).
+- **Inline Cache Guard**: Every Inline Cache (IC) at a call site stores the `cachedSerial` or `cachedVersion` along with the target method.
+- **Lazy Invalidation**: When a superclass method is added or modified at runtime:
+  - The VM simply increments `globalMethodSerial++` (or `superclass->classVersion++`).
+  - The VM does **NOT** iterate through all subclasses or call sites immediately.
+  - On the next method call, the IC checks `if (globalMethodSerial != cachedSerial)`. The mismatch causes a cache miss, forcing the call site to re-resolve the method lazily and update the cache.
+
+---
+
+##### 2. Subclass Tree Traversal & Cascade Updates
+- **Subclass Pointer Links**: Each class object maintains a list of references to its direct subclasses (`klass->subclasses`).
+- **Recursive Re-copy / Cache Purge**: When a method is defined on a superclass after its declaration:
+  - The VM traverses the subclass tree starting from the modified class down to all descendant subclasses.
+  - For copy-down inheritance engines, the VM copies the new/updated method into each descendant's `methods` table.
+  - For Vtable-based engines, the VM updates slot $i$ in the Vtables of all descendant classes.
+
+---
+
+##### 3. Hierarchy Walking with Monomorphic Inline Caches (PICs)
+- Instead of copying methods down:
+  - Classes only store methods explicitly defined in their own scope (`klass->methods`).
+  - When resolving a method, if it is missing in the receiver's class, the interpreter walks up the superclass chain (`klass = klass->superclass`).
+- **IC Acceleration**:
+  - The first lookup walks the hierarchy and caches `(receiverKlass, targetMethod)` at the call site.
+  - Subsequent calls perform a single $O(1)$ check `if (receiver->klass == cachedKlass)`.
+  - When a monkey-patch occurs, invalidating ICs ensures $O(1)$ performance for routine execution while safely supporting dynamic modifications.
+
 ---
 
 ### 3.
