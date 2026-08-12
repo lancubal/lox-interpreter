@@ -2680,6 +2680,82 @@ can set a field’s value to nil, but the entry in the hash table is still
 there. How do other languages handle this? Choose and implement a
 strategy for Lox.
 
+#### Answer:
+
+##### 1. How Other Languages Handle Field Deletion:
+- **JavaScript**: Offers the `delete` operator (`delete obj.field` or `delete obj["field"]`) to remove properties from an object dictionary and update its internal shape/hidden class.
+- **Python**: Provides the `del` statement (`del obj.field` or `delattr(obj, "field")`), which deletes the entry from `obj.__dict__`.
+- **Ruby**: Provides `remove_instance_variable(:@field)`.
+
+##### 2. Implementation Strategy for Lox:
+Setting a field to `nil` (`obj.field = nil`) keeps the entry key in the internal hash table. To truly delete the key from an instance's fields hash table (`instance->fields`) and free its entry slot (placing a tombstone), we implemented the built-in native function **`deleteField(instance, fieldName)`**.
+
+##### 3. Implementation Details (`clox/vm.c`):
+`deleteFieldNative` delegates directly to `tableDelete()` in `clox/table.c`:
+
+```c
+static bool deleteFieldNative(int argCount, Value *args, Value *result) {
+  (void)argCount;
+  if (!IS_INSTANCE(args[0])) {
+    runtimeError("First argument to deleteField() must be an instance.");
+    return false;
+  }
+  if (!IS_STRING(args[1])) {
+    runtimeError("Second argument to deleteField() must be a string field name.");
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(args[0]);
+  ObjString *name = AS_STRING(args[1]);
+
+  bool deleted = tableDelete(&instance->fields, OBJ_VAL(name));
+  *result = BOOL_VAL(deleted);
+  return true;
+}
+```
+
+Registered in `initVM()`:
+```c
+defineNative("deleteField", deleteFieldNative, 2);
+```
+
+##### 4. Verification (`programs/clox/test_delete_field.lox`):
+```lox
+class Car {}
+
+var car = Car();
+car.color = "red";
+car.speed = 120;
+
+print "Initial state:";
+print hasField(car, "color"); // true
+print getField(car, "color"); // red
+
+print "Deleting color:";
+print deleteField(car, "color"); // true
+
+print "After deletion:";
+print hasField(car, "color"); // false
+print getField(car, "color"); // nil
+
+print "Deleting non-existent field:";
+print deleteField(car, "color"); // false
+```
+
+Output:
+```
+Initial state:
+true
+red
+Deleting color:
+true
+After deletion:
+false
+nil
+Deleting non-existent field:
+false
+```
+
 ---
 
 ### 4.
