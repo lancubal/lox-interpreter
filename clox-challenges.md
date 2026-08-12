@@ -2280,6 +2280,74 @@ type, isMarked, and next. How much memory do those take up (on
 your machine)? Can you come up with something more compact? Is
 there a runtime cost to doing so?
 
+#### Answer:
+
+##### 1. Memory Analysis on 64-bit Architecture (x86_64 Linux GCC):
+
+The original `struct Obj` definition (`clox/object.h`):
+```c
+struct Obj {
+  ObjType type;      // Enum (default uint32_t / int = 4 bytes)
+  bool isMarked;     // Boolean (1 byte)
+  struct Obj *next;  // Pointer (8 bytes on 64-bit Systems)
+};
+```
+
+Due to **C struct alignment padding rules** on 64-bit x86_64 systems:
+- `type`: 4 bytes (`offset 0..3`)
+- `isMarked`: 1 byte (`offset 4`)
+- **Alignment Padding**: 3 bytes (`offset 5..7`) to align the pointer `next` to an 8-byte boundary.
+- `next`: 8 bytes (`offset 8..15`)
+
+**Total memory consumed per `Obj` header**: **16 bytes** (12 bytes data + 4 bytes padding).
+
+---
+
+##### 2. Compacting `struct Obj`:
+
+###### Approach A: Tagged Pointer Header (8 Bytes Total)
+On 64-bit architectures, heap memory allocated by `malloc`/`reallocate` is guaranteed to be **8-byte aligned** (or 16-byte aligned). Consequently, the lowest 3 bits of any valid `Obj *next` pointer are always `000`.
+
+We can pack `type` (4 bits) and `isMarked` (1 bit) directly into the unused low bits of `next` or store a single `uintptr_t nextAndFlags`:
+
+```c
+struct Obj {
+  uintptr_t nextAndFlags; 
+  // Bit 0: isMarked (0 or 1)
+  // Bits 1..4: type (ObjType enum 0..15)
+  // Bits 3..63: Obj* next pointer (masked with ~7)
+};
+```
+
+**Memory Consumption**: **8 bytes** (50% reduction in header memory footprint).
+
+###### Approach B: Bitfields + Explicit uint8_t Type (16 Bytes default, 8 Bytes with 32-bit Pointers)
+If we use explicit `uint8_t` types and bitfields:
+```c
+struct Obj {
+  uint8_t type;      // 1 byte
+  bool isMarked;     // 1 byte
+  // 6 bytes padding
+  struct Obj *next;  // 8 bytes
+};
+```
+Without pointer compression, `sizeof(struct Obj)` remains 16 bytes due to the 8-byte pointer alignment. However, combining bitfields with compressed 32-bit relative pointers (like V8 / JVM Compressed OOPs) reduces the structure to 8 bytes.
+
+---
+
+##### 3. Runtime Cost Analysis:
+
+1. **Bitwise Bitmask & Shift Overhead**:
+   Accessing header fields requires bitwise operations instead of direct struct field loads:
+   - Reading `type`: `(ObjType)((obj->nextAndFlags >> 1) & 0x0F)`
+   - Reading `isMarked`: `((obj->nextAndFlags & 1) != 0)`
+   - Reading `next`: `((Obj *)(obj->nextAndFlags & ~(uintptr_t)7))`
+   - Updating `next`: `obj->nextAndFlags = (uintptr_t)newNext | (obj->nextAndFlags & 7)`
+
+2. **CPU Instruction & Cache Line Trade-off**:
+   - **Disadvantage**: Adds 1–2 extra ALU instructions (`AND`, `SHR`, `OR`) per field access.
+   - **Advantage**: Saving 8 bytes per object increases CPU L1/L2 cache line density (64-bit cache lines hold twice as many `Obj` headers), reducing cache misses during garbage collection mark & sweep passes. In memory-intensive workloads, improved cache locality often outweighs the microsecond ALU masking overhead.
+
 ---
 
 ### 2.
