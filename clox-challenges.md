@@ -2449,3 +2449,54 @@ out there. Explore those by replacing or augmenting the current
 collector with another one. Good candidates to consider are reference
 counting, Cheney’s algorithm, or the Lisp 2 mark-compact algorithm.
 
+#### Answer:
+
+##### 1. Reference Counting (RC)
+
+###### Mechanism:
+Add a `uint32_t refCount` field to `struct Obj`.
+- **Retain**: Every time a reference to an object is created (e.g. `push()` onto `vm.stack`, storing in global variable table, setting field), increment `obj->refCount++`.
+- **Release**: Every time a reference is dropped (e.g. `pop()` from stack, overwriting variable, popping `CallFrame`), decrement `obj->refCount--`.
+- **Deallocation**: When `obj->refCount == 0`, immediately call `freeObject(obj)` and recursively call `release` on all child objects referenced by `obj`.
+
+###### Pros & Cons:
+- **Pros**: Deterministic deallocation (objects freed immediately upon losing last reference). Zero GC pause times.
+- **Cons**:
+  - **Cyclic Garbage Bug**: Cannot collect cyclic graphs (e.g. Object A references B, B references A). Requires complex trial deletion algorithms (Bacon-Rajan) or explicit weak references.
+  - **High Execution Overhead**: Pushing and popping stack slots or assigning variables requires incrementing/decrementing reference counts on every bytecode loop iteration (~30-50% slower execution speed).
+
+---
+
+##### 2. Cheney's Copying Collector (Two-Space Collector)
+
+###### Mechanism:
+Divide heap memory into two equal-sized spaces: **From-Space** and **To-Space**.
+- All allocations occur linearly via a bump-pointer (`allocationPointer += size`) in From-Space.
+- When From-Space runs out of memory:
+  1. Copy all root objects from From-Space to To-Space. Replace original object headers in From-Space with a forwarding pointer.
+  2. Advance a `scan` pointer linearly through To-Space. For each object in To-Space, update its child pointers by copying referenced objects from From-Space to To-Space.
+  3. Swap From-Space and To-Space (`swap(fromSpace, toSpace)`).
+
+###### Pros & Cons:
+- **Pros**:
+  - **$O(1)$ Bump Allocation & No Fragmentation**: Extremely fast allocations without free-list searches.
+  - **$O(\text{Live})$ Complexity**: Collection time is proportional **only to live objects**, ignoring dead garbage completely.
+- **Cons**:
+  - **2x Memory Footprint**: Half of the total allocated heap is kept idle as To-Space.
+  - **Pointer Relocation Overhead**: Relocating live objects requires updating every single pointer on the VM stack, call frames, globals, and tables.
+
+---
+
+##### 3. Lisp 2 Mark-Compact Collector
+
+###### Mechanism:
+A 4-pass compacting collector operating in-place within a single heap space:
+1. **Pass 1 (Mark)**: Perform standard root tracing and mark all reachable live objects.
+2. **Pass 2 (Compute Forwarding Addresses)**: Iterate linearly through the heap from low to high addresses. For each marked live object, calculate its target compacted location (`freePointer`), store `freePointer` in `obj->forwarding`, and advance `freePointer += sizeof(object)`.
+3. **Pass 3 (Update Pointers)**: Iterate over all roots (stack slots, call frames, globals, interned strings, and fields inside marked objects). Update every reference `p` to point to `p->forwarding`.
+4. **Pass 4 (Compact & Move)**: Iterate linearly through the heap. Copy each marked object to its `obj->forwarding` address, and reset its mark bit.
+
+###### Pros & Cons:
+- **Pros**: Zero memory footprint overhead (compacts in-place without Cheney's 2x space penalty). Eliminates heap fragmentation.
+- **Cons**: Requires 4 sequential passes over the heap/live objects during collection, increasing pause times for large heaps.
+
