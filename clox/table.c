@@ -103,8 +103,7 @@ static void adjustCapacity(Table *table, int capacity) {
     entries[i].value = NIL_VAL;
   }
 
-  table->count = 0;
-
+  int count = 0;
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
     if (IS_EMPTY(entry->key) || IS_TOMBSTONE(entry->key))
@@ -113,13 +112,14 @@ static void adjustCapacity(Table *table, int capacity) {
     Entry *dest = findEntry(entries, capacity, entry->key);
     dest->key = entry->key;
     dest->value = entry->value;
-    table->count++;
+    count++;
   }
 
   FREE_ARRAY(Entry, table->entries, table->capacity);
 
   table->entries = entries;
   table->capacity = capacity;
+  table->count = count;
 }
 
 bool tableSet(Table *table, Value key, Value value) {
@@ -166,8 +166,8 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
 
   uint32_t index = hash & (table->capacity - 1);
 
-  for (;;) {
-    Entry *entry = &table->entries[index];
+  for (int i = 0; i < table->capacity; i++) {
+    Entry *entry = &table->entries[(index + i) & (table->capacity - 1)];
     if (IS_EMPTY(entry->key)) {
       return NULL;
     } else if (!IS_TOMBSTONE(entry->key) && IS_OBJ(entry->key)) {
@@ -180,9 +180,8 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
         }
       }
     }
-
-    index = (index + 1) & (table->capacity - 1);
   }
+  return NULL;
 }
 
 void tableRemoveWhite(Table *table) {

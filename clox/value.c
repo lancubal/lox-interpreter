@@ -61,6 +61,17 @@ bool valuesEqual(Value a, Value b) {
   if (IS_NUMBER(a) && IS_NUMBER(b)) {
     return AS_NUMBER(a) == AS_NUMBER(b);
   }
+  if (IS_OBJ(a) && IS_OBJ(b)) {
+    Obj *objA = AS_OBJ(a);
+    Obj *objB = AS_OBJ(b);
+    if (objA == objB) return true;
+    if (objA->type == OBJ_STRING && objB->type == OBJ_STRING) {
+      ObjString *sa = (ObjString *)objA;
+      ObjString *sb = (ObjString *)objB;
+      return sa->length == sb->length && sa->hash == sb->hash &&
+             memcmp(sa->chars, sb->chars, sa->length) == 0;
+    }
+  }
   return a == b;
 #else
   if (a.type != b.type)
@@ -73,7 +84,16 @@ bool valuesEqual(Value a, Value b) {
   case VAL_NUMBER:
     return AS_NUMBER(a) == AS_NUMBER(b);
   case VAL_OBJ: {
-    return AS_OBJ(a) == AS_OBJ(b);
+    Obj *objA = AS_OBJ(a);
+    Obj *objB = AS_OBJ(b);
+    if (objA == objB) return true;
+    if (objA->type == OBJ_STRING && objB->type == OBJ_STRING) {
+      ObjString *sa = (ObjString *)objA;
+      ObjString *sb = (ObjString *)objB;
+      return sa->length == sb->length && sa->hash == sb->hash &&
+             memcmp(sa->chars, sb->chars, sa->length) == 0;
+    }
+    return objA == objB;
   }
   default:
     return false;

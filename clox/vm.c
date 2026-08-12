@@ -365,11 +365,10 @@ static bool callValue(Value callee, int argCount) {
     case OBJ_CLASS: {
       ObjClass *klass = AS_CLASS(callee);
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
-      Value initializer;
-      if (tableGet(&klass->methods, OBJ_VAL(vm.initString), &initializer)) {
-        return callValue(initializer, argCount);
+      if (!IS_NIL(klass->initializer)) {
+        return callValue(klass->initializer, argCount);
       } else if (argCount != 0) {
-        runtimeError("Expected 0 arguments but got %d", argCount);
+        runtimeError("Expected 0 arguments but got %d.", argCount);
         return false;
       }
       return true;
@@ -398,6 +397,9 @@ static bool callValue(Value callee, int argCount) {
       break; // Non-callable
     }
   }
+  printf("DEBUG FAIL: frameCount=%d, callee=", vm.frameCount);
+  printValue(callee);
+  printf("\n");
   runtimeError("Can only call function and classes.");
   return false;
 }
@@ -423,7 +425,7 @@ static bool invoke(ObjString *name, int argCount) {
   ObjInstance *instance = AS_INSTANCE(receiver);
 
   Value value;
-  if (!tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+  if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
     vm.stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
@@ -479,6 +481,9 @@ static void defineMethod(ObjString *name) {
   Value method = peek(0);
   ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, OBJ_VAL(name), method);
+  if (name->length == 4 && memcmp(name->chars, "init", 4) == 0) {
+    klass->initializer = method;
+  }
   pop();
 }
 
@@ -813,6 +818,7 @@ static InterpretResult run() {
       }
 
       tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+      subclass->initializer = AS_CLASS(superclass)->initializer;
       pop(); // Subclass
       break;
     }

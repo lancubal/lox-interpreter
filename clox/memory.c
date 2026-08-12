@@ -47,100 +47,20 @@ void freeCustomHeap() {
   }
 }
 
-static void coalesceHeap() {
-  BlockHeader *curr = heapStart;
-  while (curr != NULL && curr->next != NULL) {
-    if (curr->isFree && curr->next->isFree) {
-      curr->size += sizeof(BlockHeader) + curr->next->size;
-      curr->next = curr->next->next;
-    } else {
-      curr = curr->next;
-    }
-  }
-}
 
-static void *customAlloc(size_t size) {
-  size = (size + 7) & ~7;
-  BlockHeader *curr = heapStart;
-  while (curr != NULL) {
-    if (curr->isFree && curr->size >= size) {
-      if (curr->size >= size + sizeof(BlockHeader) + 16) {
-        BlockHeader *nextBlock = (BlockHeader *)((uint8_t *)(curr + 1) + size);
-        nextBlock->size = curr->size - size - sizeof(BlockHeader);
-        nextBlock->isFree = true;
-        nextBlock->next = curr->next;
 
-        curr->size = size;
-        curr->next = nextBlock;
-      }
-      curr->isFree = false;
-      return (void *)(curr + 1);
-    }
-    curr = curr->next;
-  }
-
-  coalesceHeap();
-  curr = heapStart;
-  while (curr != NULL) {
-    if (curr->isFree && curr->size >= size) {
-      if (curr->size >= size + sizeof(BlockHeader) + 16) {
-        BlockHeader *nextBlock = (BlockHeader *)((uint8_t *)(curr + 1) + size);
-        nextBlock->size = curr->size - size - sizeof(BlockHeader);
-        nextBlock->isFree = true;
-        nextBlock->next = curr->next;
-
-        curr->size = size;
-        curr->next = nextBlock;
-      }
-      curr->isFree = false;
-      return (void *)(curr + 1);
-    }
-    curr = curr->next;
-  }
-
-  fprintf(stderr, "Custom heap out of memory!\n");
-  exit(1);
-}
-
-static void customFree(void *ptr) {
-  if (ptr == NULL) return;
-  BlockHeader *block = ((BlockHeader *)ptr) - 1;
-  block->isFree = true;
-  coalesceHeap();
-}
-
-static void *customRealloc(void *ptr, size_t oldSize, size_t newSize) {
-  if (ptr == NULL) {
-    return customAlloc(newSize);
-  }
-  if (newSize == 0) {
-    customFree(ptr);
-    return NULL;
-  }
-
-  BlockHeader *block = ((BlockHeader *)ptr) - 1;
-  if (block->size >= newSize) {
-    return ptr;
-  }
-
-  void *newPtr = customAlloc(newSize);
-  if (newPtr != NULL) {
-    size_t copySize = oldSize < newSize ? oldSize : newSize;
-    memcpy(newPtr, ptr, copySize);
-    customFree(ptr);
-  }
-  return newPtr;
-}
+static bool inGC = false;
 
 void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
   vm.bytesAllocated += newSize - oldSize;
-  if (newSize > oldSize) {
+  if (newSize > oldSize && !inGC) {
 #ifdef DEBUG_STRESS_GC
     collectGarbage();
-#endif
+#else
     if (vm.bytesAllocated > vm.nextGC) {
       collectGarbage();
     }
+#endif
   }
   if (newSize == 0) {
     free(pointer);
@@ -169,13 +89,13 @@ void markObject(Obj *object) {
     int oldCap = vm.grayCapacity;
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
     vm.grayStack =
-        (Obj **)customRealloc(vm.grayStack, sizeof(Obj *) * oldCap, sizeof(Obj *) * vm.grayCapacity);
+        (Obj **)reallocate(vm.grayStack, sizeof(Obj *) * oldCap, sizeof(Obj *) * vm.grayCapacity);
 
     if (vm.grayStack == NULL)
       exit(1);
-
-    vm.grayStack[vm.grayCount++] = object;
   }
+
+  vm.grayStack[vm.grayCount++] = object;
 }
 
 void markValue(Value value) {
@@ -206,6 +126,7 @@ static void blackenObject(Obj *object) {
     ObjClass *klass = (ObjClass *)object;
     markObject((Obj *)klass->name);
     markTable(&klass->methods);
+    markValue(klass->initializer);
     break;
   }
   case OBJ_INSTANCE: {
@@ -291,6 +212,9 @@ static void sweep() {
 }
 
 void collectGarbage() {
+  if (inGC) return;
+  inGC = true;
+
 #ifdef DEBUG_LOG_GC
   printf("-- gc begin\n");
   size_t before = vm.bytesAllocated;
@@ -308,6 +232,8 @@ void collectGarbage() {
   printf("Collected  %zu bytes (from %zu to %zu) next at %zu\n",
          before - vm.bytesAllocated, before, vm.bytesAllocated, vm.nextGC);
 #endif
+
+  inGC = false;
 }
 
 static void freeObject(Obj *object) {
@@ -370,5 +296,5 @@ void freeObjects() {
     object = next;
   }
 
-  free(vm.grayStack);
+  FREE_ARRAY(Obj *, vm.grayStack, vm.grayCapacity);
 }
