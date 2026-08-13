@@ -152,3 +152,26 @@ Standard Lox explicitly **excludes** the following operator categories:
   - `initializer`: Executed once before the loop (can be a `var` declaration, expression statement, or empty `;`).
   - `condition`: Evaluated before each iteration (defaults to `true` if omitted).
   - `increment`: Executed at the end of each iteration step after `body`.
+
+---
+
+## 7. Functions & Closures
+
+### 7.1 Function Declarations (`fun`)
+- Syntax: `fun name(param1, param2, ...) { body }`
+- Declares a function named `name` with zero or more comma-separated parameter identifiers.
+- **Mandatory Block Body**: The body of a function is **always a block** enclosed in `{ ... }`.
+
+### 7.2 Function Calls & Invocation
+- Syntax: `callee(arg1, arg2, ...)` or `callee()` (for zero arguments).
+- **Mandatory Parentheses**: Parentheses `()` are required to invoke a function. Omitting parentheses (e.g. `makeBreakfast`) does not execute the function—it simply evaluates to the function object value itself.
+- Arity Check: Invoking a function with fewer or more arguments than its declared parameter count produces a runtime error.
+
+### 7.3 Return Statements (`return`)
+- Syntax: `return expression;` or `return;`
+- Immediately terminates function execution and passes the evaluated `expression` value back to the caller. `return;` without an expression returns `nil`.
+- **Implicit Return**: If execution reaches the end of the function body block without encountering an explicit `return` statement, the function implicitly returns `nil`.
+
+### 7.4 First-Class Functions & Lexical Closures
+- **First-Class Values**: Functions in Lox are first-class objects—they can be bound to variables, stored in data structures, passed as parameters to other functions, and returned from function calls.
+- **Lexical Closures**: Local functions close over variables in their surrounding enclosing scope chains. A function retains access to outer variables even after the enclosing outer function has finished executing and returned (`returnFunction()`).
