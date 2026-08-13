@@ -68,3 +68,34 @@ This document records the exact language design specification and behavior for *
 - **Universal Evaluation**: Can compare any two values of any type without throwing a runtime error.
 - Operands of different types are considered **not equal** (e.g., `314 == "pi"` evaluates to `false`).
 - `nil` is only equal to `nil`.
+
+### 3.5 Logical Operators & Truthiness
+- **Truthiness Rules**: `false` and `nil` are **falsy**. All other values (including `0`, `""`, and objects) are **truthy**.
+- **Unary Logical NOT (`!`)**:
+  - Prefix operator `!`.
+  - Returns `false` if operand is truthy, and `true` if operand is falsy (`!true` -> `false`, `!false` -> `true`).
+- **Short-Circuiting Logical Operators (`and`, `or`)**:
+  - `and`: Evaluates left operand. If left operand is falsy, returns left operand immediately (**short-circuits**, right operand is not evaluated). Otherwise, evaluates and returns right operand.
+  - `or`: Evaluates left operand. If left operand is truthy, returns left operand immediately (**short-circuits**, right operand is not evaluated). Otherwise, evaluates and returns right operand.
+
+### 3.6 Operator Precedence & Associativity
+Operators follow standard C precedence rules (from highest to lowest precedence):
+
+| Precedence Group | Operators | Associativity |
+| :--- | :--- | :---: |
+| **Grouping & Primary** | `()`, literals, variables | N/A |
+| **Unary** | `!`, `-` | Right-to-left |
+| **Multiplicative** | `*`, `/` | Left-to-right |
+| **Additive** | `+`, `-` | Left-to-right |
+| **Comparison** | `<`, `<=`, `>`, `>=` | Left-to-right |
+| **Equality** | `==`, `!=` | Left-to-right |
+| **Logical AND** | `and` | Left-to-right |
+| **Logical OR** | `or` | Left-to-right |
+| **Assignment** | `=` | Right-to-left |
+
+### 3.7 Intentionally Omitted Operators
+Standard Lox explicitly **excludes** the following operator categories:
+- No bitwise operators (`&`, `|`, `^`, `~`).
+- No shift operators (`<<`, `>>`, `>>>`).
+- No modulo operator (`%`).
+- No conditional ternary operator (`?:`).
