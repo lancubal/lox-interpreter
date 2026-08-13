@@ -537,8 +537,17 @@ static void or_(bool canAssign) {
 }
 
 static void string(bool canAssign) {
-  emitConstant(OBJ_VAL(
-      copyString(parser.previous.start + 1, parser.previous.length - 2)));
+  int length = parser.previous.length - 2;
+  const char *chars = parser.previous.start + 1;
+
+#ifndef NAN_BOXING
+  if (length <= SMALL_STRING_MAX) {
+    emitConstant(SMALL_STRING_VAL(chars, length));
+    return;
+  }
+#endif
+
+  emitConstant(OBJ_VAL(copyString(chars, length)));
 }
 
 static void namedVariable(Token name, bool canAssign) {

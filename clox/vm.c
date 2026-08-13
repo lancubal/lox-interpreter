@@ -140,10 +140,9 @@ static bool hasFieldNative(int argCount, Value *args, Value *result) {
   }
 
   ObjInstance *instance = AS_INSTANCE(args[0]);
-  ObjString *name = AS_STRING(args[1]);
 
   Value dummy;
-  bool exists = tableGet(&instance->fields, OBJ_VAL(name), &dummy);
+  bool exists = tableGet(&instance->fields, args[1], &dummy);
   *result = BOOL_VAL(exists);
   return true;
 }
@@ -160,10 +159,9 @@ static bool getFieldNative(int argCount, Value *args, Value *result) {
   }
 
   ObjInstance *instance = AS_INSTANCE(args[0]);
-  ObjString *name = AS_STRING(args[1]);
 
   Value val;
-  if (tableGet(&instance->fields, OBJ_VAL(name), &val)) {
+  if (tableGet(&instance->fields, args[1], &val)) {
     *result = val;
   } else {
     *result = NIL_VAL;
@@ -183,10 +181,9 @@ static bool setFieldNative(int argCount, Value *args, Value *result) {
   }
 
   ObjInstance *instance = AS_INSTANCE(args[0]);
-  ObjString *name = AS_STRING(args[1]);
   Value value = args[2];
 
-  tableSet(&instance->fields, OBJ_VAL(name), value);
+  tableSet(&instance->fields, args[1], value);
   *result = value;
   return true;
 }
@@ -203,9 +200,8 @@ static bool deleteFieldNative(int argCount, Value *args, Value *result) {
   }
 
   ObjInstance *instance = AS_INSTANCE(args[0]);
-  ObjString *name = AS_STRING(args[1]);
 
-  bool deleted = tableDelete(&instance->fields, OBJ_VAL(name));
+  bool deleted = tableDelete(&instance->fields, args[1]);
   *result = BOOL_VAL(deleted);
   return true;
 }
@@ -393,13 +389,13 @@ static bool callValue(Value callee, int argCount) {
   return false;
 }
 
-static ObjClass *findHighestClassWithMethod(ObjClass *klass, ObjString *name, Value *outMethod) {
+static ObjClass *findHighestClassWithMethod(ObjClass *klass, Value name, Value *outMethod) {
   ObjClass *highestClass = NULL;
   Value highestMethod = NIL_VAL;
 
   for (ObjClass *curr = klass; curr != NULL; curr = curr->superclass) {
     Value value;
-    if (tableGet(&curr->methods, OBJ_VAL(name), &value)) {
+    if (tableGet(&curr->methods, name, &value)) {
       highestClass = curr;
       highestMethod = value;
     }
@@ -411,7 +407,7 @@ static ObjClass *findHighestClassWithMethod(ObjClass *klass, ObjString *name, Va
   return highestClass;
 }
 
-static bool findInnerMethod(ObjClass *enclosingClass, ObjClass *actualClass, ObjString *name, Value *outMethod) {
+static bool findInnerMethod(ObjClass *enclosingClass, ObjClass *actualClass, Value name, Value *outMethod) {
   ObjClass *chain[256];
   int count = 0;
 
@@ -421,7 +417,7 @@ static bool findInnerMethod(ObjClass *enclosingClass, ObjClass *actualClass, Obj
 
   for (int i = count - 1; i >= 0; i--) {
     Value value;
-    if (tableGet(&chain[i]->methods, OBJ_VAL(name), &value)) {
+    if (tableGet(&chain[i]->methods, name, &value)) {
       if (outMethod != NULL) *outMethod = value;
       return true;
     }
@@ -430,18 +426,18 @@ static bool findInnerMethod(ObjClass *enclosingClass, ObjClass *actualClass, Obj
   return false;
 }
 
-static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount) {
+static bool invokeFromClass(ObjClass *klass, Value name, int argCount) {
   Value method;
   ObjClass *targetClass = findHighestClassWithMethod(klass, name, &method);
   if (targetClass == NULL) {
-    runtimeError("Undefined property '%s'.", name->chars);
+    runtimeError("Undefined property '%s'.", valueAsCString(&name, NULL));
     return false;
   }
 
   return callValue(method, argCount);
 }
 
-static bool invoke(ObjString *name, int argCount) {
+static bool invoke(Value name, int argCount) {
   Value receiver = peek(argCount);
 
   if (!IS_INSTANCE(receiver)) {
@@ -452,18 +448,18 @@ static bool invoke(ObjString *name, int argCount) {
   ObjInstance *instance = AS_INSTANCE(receiver);
 
   Value value;
-  if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+  if (tableGet(&instance->fields, name, &value)) {
     vm.stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
   return invokeFromClass(instance->klass, name, argCount);
 }
 
-static bool bindMethod(ObjClass *klass, ObjString *name) {
+static bool bindMethod(ObjClass *klass, Value name) {
   Value method;
   ObjClass *targetClass = findHighestClassWithMethod(klass, name, &method);
   if (targetClass == NULL) {
-    runtimeError("Undefined property '%s'.", name->chars);
+    runtimeError("Undefined property '%s'.", valueAsCString(&name, NULL));
     return false;
   }
 
@@ -505,16 +501,18 @@ static void closeUpvalues(Value *last) {
   }
 }
 
-static void defineMethod(ObjString *name) {
+static void defineMethod(Value name) {
   Value method = peek(0);
   ObjClass *klass = AS_CLASS(peek(1));
-  tableSet(&klass->methods, OBJ_VAL(name), method);
+  tableSet(&klass->methods, name, method);
   if (IS_FUNCTION(method)) {
     AS_FUNCTION(method)->enclosingClass = klass;
   } else if (IS_CLOSURE(method)) {
     AS_CLOSURE(method)->function->enclosingClass = klass;
   }
-  if (name->length == 4 && memcmp(name->chars, "init", 4) == 0) {
+  int len;
+  const char *cStr = valueAsCString(&name, &len);
+  if (len == 4 && memcmp(cStr, "init", 4) == 0) {
     klass->initializer = method;
   }
   pop();
@@ -525,14 +523,26 @@ static bool isFalsey(Value value) {
 }
 
 static void concatenate() {
-  ObjString *b = AS_STRING(peek(0));
-  ObjString *a = AS_STRING(peek(1));
+  int lenB, lenA;
+  const char *strB = valueAsCString(&vm.stackTop[-1], &lenB);
+  const char *strA = valueAsCString(&vm.stackTop[-2], &lenA);
 
-  int length = a->length + b->length;
+  int length = lenA + lenB;
   char *chars = ALLOCATE(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
+  memcpy(chars, strA, lenA);
+  memcpy(chars + lenA, strB, lenB);
   chars[length] = '\0';
+
+#ifndef NAN_BOXING
+  if (length <= SMALL_STRING_MAX) {
+    Value result = SMALL_STRING_VAL(chars, length);
+    FREE_ARRAY(char, chars, length + 1);
+    pop();
+    pop();
+    push(result);
+    return;
+  }
+#endif
 
   ObjString *result = takeString(chars, length);
   pop();
@@ -551,7 +561,7 @@ static InterpretResult run() {
   (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define READ_24BIT()                                                           \
   (ip += 3, (uint32_t)(ip[-3] | (ip[-2] << 8) | (ip[-1] << 16)))
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING() READ_CONSTANT()
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                          \
@@ -631,29 +641,29 @@ static InterpretResult run() {
       break;
     }
     case OP_GET_GLOBAL: {
-      ObjString *name = READ_STRING();
+      Value name = READ_STRING();
       Value value;
-      if (!tableGet(&vm.globals, OBJ_VAL(name), &value)) {
+      if (!tableGet(&vm.globals, name, &value)) {
         frame->ip = ip;
-        runtimeError("Undefined variable '%s'", name->chars);
+        runtimeError("Undefined variable '%s'", valueAsCString(&name, NULL));
         return INTERPRET_RUNTIME_ERROR;
       }
       push(value);
       break;
     }
     case OP_SET_GLOBAL: {
-      ObjString *name = READ_STRING();
-      if (tableSet(&vm.globals, OBJ_VAL(name), peek(0))) {
-        tableDelete(&vm.globals, OBJ_VAL(name));
+      Value name = READ_STRING();
+      if (tableSet(&vm.globals, name, peek(0))) {
+        tableDelete(&vm.globals, name);
         frame->ip = ip;
-        runtimeError("Undefined variable '%s'.", name->chars);
+        runtimeError("Undefined variable '%s'.", valueAsCString(&name, NULL));
         return INTERPRET_RUNTIME_ERROR;
       }
       break;
     }
     case OP_DEFINE_GLOBAL: {
-      ObjString *name = READ_STRING();
-      tableSet(&vm.globals, OBJ_VAL(name), peek(0));
+      Value name = READ_STRING();
+      tableSet(&vm.globals, name, peek(0));
       pop();
       break;
     }
@@ -674,10 +684,10 @@ static InterpretResult run() {
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjInstance *instance = AS_INSTANCE(peek(0));
-      ObjString *name = READ_STRING();
+      Value name = READ_STRING();
 
       Value value;
-      if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+      if (tableGet(&instance->fields, name, &value)) {
         pop();
         push(value);
         break;
@@ -698,14 +708,15 @@ static InterpretResult run() {
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjInstance *instance = AS_INSTANCE(peek(1));
-      tableSet(&instance->fields, OBJ_VAL(READ_STRING()), peek(0));
+      Value name = READ_STRING();
+      tableSet(&instance->fields, name, peek(0));
       Value value = pop();
       pop();
       push(value);
       break;
     }
     case OP_GET_SUPER: {
-      ObjString *name = READ_STRING();
+      Value name = READ_STRING();
       ObjClass *superclass = AS_CLASS(pop());
 
       frame->ip = ip;
@@ -795,7 +806,7 @@ static InterpretResult run() {
       break;
     }
     case OP_INVOKE: {
-      ObjString *method = READ_STRING();
+      Value method = READ_STRING();
       int argCount = READ_BYTE();
       frame->ip = ip;
       if (!invoke(method, argCount)) {
@@ -806,7 +817,7 @@ static InterpretResult run() {
       break;
     }
     case OP_SUPER_INVOKE: {
-      ObjString *method = READ_STRING();
+      Value method = READ_STRING();
       int argCount = READ_BYTE();
       ObjClass *superclass = AS_CLASS(pop());
       frame->ip = ip;
@@ -829,11 +840,13 @@ static InterpretResult run() {
 
       ObjInstance *instance = AS_INSTANCE(receiver);
       ObjFunction *currFunc = frame->function;
-      ObjString *methodName = currFunc != NULL ? currFunc->name : NULL;
+      Value methodName = (currFunc != NULL && currFunc->name != NULL)
+                             ? OBJ_VAL(currFunc->name)
+                             : NIL_VAL;
       ObjClass *enclosingClass = currFunc != NULL ? currFunc->enclosingClass : NULL;
 
       Value innerMethod;
-      if (enclosingClass != NULL && methodName != NULL &&
+      if (enclosingClass != NULL && !IS_NIL(methodName) &&
           findInnerMethod(enclosingClass, instance->klass, methodName, &innerMethod)) {
         frame->ip = ip;
         if (!callValue(innerMethod, argCount)) {
@@ -869,9 +882,12 @@ static InterpretResult run() {
       pop();
       break;
     }
-    case OP_CLASS:
-      push(OBJ_VAL(newClass(READ_STRING())));
+    case OP_CLASS: {
+      Value nameVal = READ_STRING();
+      const char *cStr = valueAsCString(&nameVal, NULL);
+      push(OBJ_VAL(newClass(copyString(cStr, strlen(cStr)))));
       break;
+    }
     case OP_INHERIT: {
       Value superclass = peek(1);
       ObjClass *subclass = AS_CLASS(peek(0));

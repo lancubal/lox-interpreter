@@ -52,6 +52,9 @@ void printValue(Value value) {
   case VAL_OBJ:
     printObject(value);
     break;
+  case VAL_SMALL_STRING:
+    printf("%.*s", value.as.smallString.length, value.as.smallString.chars);
+    break;
   }
 #endif
 }
@@ -74,6 +77,23 @@ bool valuesEqual(Value a, Value b) {
   }
   return a == b;
 #else
+  if (IS_SMALL_STRING(a) || IS_SMALL_STRING(b)) {
+    if (IS_SMALL_STRING(a) && IS_SMALL_STRING(b)) {
+      return a.as.smallString.length == b.as.smallString.length &&
+             memcmp(a.as.smallString.chars, b.as.smallString.chars, a.as.smallString.length) == 0;
+    }
+    if (IS_SMALL_STRING(a) && IS_OBJ(b) && AS_OBJ(b)->type == OBJ_STRING) {
+      ObjString *sb = AS_STRING(b);
+      return a.as.smallString.length == sb->length &&
+             memcmp(a.as.smallString.chars, sb->chars, sb->length) == 0;
+    }
+    if (IS_SMALL_STRING(b) && IS_OBJ(a) && AS_OBJ(a)->type == OBJ_STRING) {
+      ObjString *sa = AS_STRING(a);
+      return b.as.smallString.length == sa->length &&
+             memcmp(b.as.smallString.chars, sa->chars, sa->length) == 0;
+    }
+    return false;
+  }
   if (a.type != b.type)
     return false;
   switch (a.type) {

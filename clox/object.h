@@ -13,7 +13,11 @@
 #define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 #define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
+#ifndef NAN_BOXING
+#define IS_STRING(value) (IS_SMALL_STRING(value) || isObjType(value, OBJ_STRING))
+#else
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
+#endif
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
@@ -118,6 +122,22 @@ void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
+}
+
+static inline const char *valueAsCString(const Value *val, int *outLen) {
+#ifndef NAN_BOXING
+  if (IS_SMALL_STRING(*val)) {
+    if (outLen != NULL) *outLen = (int)val->as.smallString.length;
+    return val->as.smallString.chars;
+  }
+#endif
+  if (isObjType(*val, OBJ_STRING)) {
+    ObjString *str = (ObjString *)AS_OBJ(*val);
+    if (outLen != NULL) *outLen = str->length;
+    return str->chars;
+  }
+  if (outLen != NULL) *outLen = 0;
+  return "";
 }
 
 #endif

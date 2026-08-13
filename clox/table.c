@@ -38,6 +38,14 @@ uint32_t hashValue(Value key) {
     bits = ((bits >> 32) ^ bits) * 0x45d9f3b;
     return (uint32_t)bits;
   }
+  case VAL_SMALL_STRING: {
+    uint32_t hash = 2166136261u;
+    for (int i = 0; i < key.as.smallString.length; i++) {
+      hash ^= (uint32_t)key.as.smallString.chars[i];
+      hash *= 16777619;
+    }
+    return hash;
+  }
   case VAL_OBJ: {
     Obj *obj = AS_OBJ(key);
     if (obj->type == OBJ_STRING) {

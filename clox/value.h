@@ -54,13 +54,16 @@ static inline Value numToValue(double num) {
 
 #else
 
+#define SMALL_STRING_MAX 6
+
 typedef enum {
   VAL_BOOL,
   VAL_NIL,
   VAL_NUMBER,
   VAL_OBJ,
   VAL_EMPTY,
-  VAL_TOMBSTONE
+  VAL_TOMBSTONE,
+  VAL_SMALL_STRING
 } ValueType;
 
 typedef struct {
@@ -69,9 +72,14 @@ typedef struct {
     bool boolean;
     double number;
     Obj *obj;
+    struct {
+      uint8_t length;
+      char chars[7];
+    } smallString;
   } as;
 } Value;
 
+#define IS_SMALL_STRING(value) ((value).type == VAL_SMALL_STRING)
 #define IS_BOOL(value) ((value).type == VAL_BOOL)
 #define IS_NIL(value) ((value).type == VAL_NIL)
 #define IS_EMPTY(value) ((value).type == VAL_EMPTY)
@@ -89,6 +97,15 @@ typedef struct {
 #define TOMBSTONE_VAL ((Value){VAL_TOMBSTONE, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj *)object}})
+
+static inline Value SMALL_STRING_VAL(const char *chars, int length) {
+  Value val;
+  val.type = VAL_SMALL_STRING;
+  val.as.smallString.length = (uint8_t)length;
+  memcpy(val.as.smallString.chars, chars, length);
+  val.as.smallString.chars[length] = '\0';
+  return val;
+}
 
 #endif
 

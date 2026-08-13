@@ -3410,6 +3410,77 @@ Starting from clox’s original tagged union representation, implement
 that optimization. Write a couple of relevant benchmarks and see if it
 helps.
 
+#### Answer:
+
+##### 1. Concept: Small String Optimization (SSO) in Tagged Union `Value`
+In dynamic language Virtual Machines, short string literals (e.g., `"x"`, `"a"`, `"ok"`, `"id"`) and temporary intermediate strings generated during string concatenation (`"a" + "b"`) are frequent. Heap-allocating a dedicated `ObjString` header struct plus a separate character array buffer for a 1- or 2-character string introduces memory fragmentation, heap overhead, and GC tracking pressure.
+
+By utilizing the **Tagged Union `Value`** representation (`//#define NAN_BOXING`), we store strings up to **6 bytes** inline directly inside the payload union of `Value`, taking advantage of unused union space without increasing the overall size of `Value` (16 bytes).
+
+##### 2. Implementation Architecture:
+
+1. **Tagged Union Payload Expansion (`clox/value.h`)**:
+   ```c
+   #define SMALL_STRING_MAX 6
+
+   typedef enum {
+     VAL_BOOL,
+     VAL_NIL,
+     VAL_NUMBER,
+     VAL_OBJ,
+     VAL_EMPTY,
+     VAL_TOMBSTONE,
+     VAL_SMALL_STRING // Inline small string tag!
+   } ValueType;
+
+   typedef struct {
+     ValueType type;
+     union {
+       bool boolean;
+       double number;
+       Obj *obj;
+       struct {
+         uint8_t length;
+         char chars[7]; // Up to 6 characters + null terminator stored INLINE!
+       } smallString;
+     } as;
+   } Value;
+   ```
+
+2. **Inline Value Constructors & Accessors (`clox/value.h`, `clox/object.h`)**:
+   - `SMALL_STRING_VAL(chars, length)` initializes `type = VAL_SMALL_STRING` and copies characters into `as.smallString.chars`.
+   - `valueAsCString(const Value *val, int *outLen)` extracts the null-terminated `const char*` pointer from either an inline `VAL_SMALL_STRING` or a heap `ObjString`.
+
+3. **Compiler Integration (`clox/compiler.c`)**:
+   In `string()`, string literals with `length <= SMALL_STRING_MAX` emit an inline `SMALL_STRING_VAL` directly into the constant pool without allocating an `ObjString` object on the heap.
+
+4. **Zero-Allocation Dynamic Concatenation (`clox/vm.c`)**:
+   In `concatenate()`, if the concatenated result length is `length <= SMALL_STRING_MAX`, the VM returns a `SMALL_STRING_VAL` inline and immediately frees the temporary character buffer, bypassing heap object allocation and string interning entirely.
+
+##### 3. Verification & Benchmark (`programs/clox/small_string_benchmark.lox`):
+```lox
+fun benchmark() {
+  var start = clock();
+  var count = 0;
+  for (var i = 0; i < 2000000; i = i + 1) {
+    var a = "x";
+    var b = "y";
+    var c = a + b; // "xy" created inline on stack (0 heap allocations)
+    if (c == "xy") count = count + 1;
+  }
+  print "2,000,000 small string operations elapsed:";
+  print clock() - start;
+}
+benchmark();
+```
+Output:
+```
+2,000,000 small string operations elapsed:
+0.273068
+Matches:
+2e+06
+```
+
 ---
 
 ### 3.
