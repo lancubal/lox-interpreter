@@ -1,0 +1,2 @@
+[debug] Created transactional ClassFileManager with tempDir = /home/luna/repos/lox-interpreter/slox/target/scala-3.3.3/classes.bak
+[debug] Removing the temporary directory used for backing up class files: /home/luna/repos/lox-interpreter/slox/target/scala-3.3.3/classes.bak

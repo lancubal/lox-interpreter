@@ -1,0 +1,14 @@
+[debug] Running TaskDef(ar.edu.utn.tadp.slox.InterpreterSpec, org.scalatest.tools.Framework$$anon$1@15a3d7e7, false, [SuiteSelector])
+[info] InterpreterSpec:
+[info] - Arithmetic expressions and string concatenation
+[info] - Control flow with if, while, and for loops
+[info] - First-class functions and lexical closures
+[info] - Classes, initializers, dynamic properties, and inheritance with super
+[info] - Native clock function
+[info] Run completed in 429 milliseconds.
+[info] Total number of tests run: 5
+[info] Suites: completed 1, aborted 0
+[info] Tests: succeeded 5, failed 0, canceled 0, ignored 0, pending 0
+[info] All tests passed.
+[debug] Passed tests:
+[debug] 	ar.edu.utn.tadp.slox.InterpreterSpec

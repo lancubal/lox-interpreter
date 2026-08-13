@@ -1,0 +1,6 @@
+[debug] [zinc] IncrementalCompile -----------
+[debug] IncrementalCompile.incrementalCompile
+[debug] previous = Stamps for: 88 products, 11 sources, 2 libraries
+[debug] current source = Set(${BASE}/src/main/scala/ar/edu/utn/tadp/slox/environment/Environment.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/ast/Expr.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/tokens/Token.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/scanner/Scanner.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/interpreter/Interpreter.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/parser/Parser.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/tokens/TokenType.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/values/Value.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/ast/Stmt.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/result/EvaluationResult.scala, ${BASE}/src/main/scala/ar/edu/utn/tadp/slox/Main.scala)
+[debug] > initialChanges = InitialChanges(Changes(added = Set(), removed = Set(), changed = Set(), unmodified = ...),Set(),Set(),API Changes: Set())
+[debug] No changes

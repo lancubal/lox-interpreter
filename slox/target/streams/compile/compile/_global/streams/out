@@ -1,0 +1,15 @@
+[error] -- [E007] Type Mismatch Error: /home/luna/repos/lox-interpreter/slox/src/main/scala/ar/edu/utn/tadp/slox/parser/Parser.scala:13:13 
+[error] 13 |    parseLoop(tokens, List.empty, List.empty)
+[error]    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[error]    | Found:    Either[List[String], List[ar.edu.utn.tadp.slox.tokens.Token]]
+[error]    | Required: Either[List[String], List[ar.edu.utn.tadp.slox.ast.Stmt]]
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E007] Type Mismatch Error: /home/luna/repos/lox-interpreter/slox/src/main/scala/ar/edu/utn/tadp/slox/parser/Parser.scala:23:23 
+[error] 23 |      else Right(stmts.reverse)
+[error]    |                 ^^^^^^^^^^^^^
+[error]    |                 Found:    List[ar.edu.utn.tadp.slox.ast.Stmt]
+[error]    |                 Required: List[ar.edu.utn.tadp.slox.tokens.Token]
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] two errors found
