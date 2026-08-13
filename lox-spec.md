@@ -36,3 +36,35 @@ This document records the exact language design specification and behavior for *
 ### 2.4 Nil
 - Keyword: `nil`.
 - Represents the absence of a value ("no value", analogous to `null` or `None`).
+
+---
+
+## 3. Expressions & Operators
+
+### 3.1 Arithmetic Infix/Binary Operators
+- Operands sit on both sides of the operator (infix notation).
+- `+` (addition): Adds two numbers. Also overloaded for **string concatenation** if both operands are strings.
+- `-` (subtraction): Subtracts right number operand from left number operand.
+- `*` (multiplication): Multiplies two number operands.
+- `/` (division): Divides left number operand by right number operand.
+- **Type Constraints**: `-`, `*`, `/` require both operands to be numbers. Passing any other type triggers a runtime error. `+` requires either two numbers or two strings.
+
+### 3.2 Unary / Prefix Operators
+- Appears before its single operand (prefix notation).
+- `-` (negation): Negates a number operand (e.g. `-x`). Requires a number operand; passing any other type produces a runtime error.
+
+### 3.3 Comparison Operators (Strictly for Numbers)
+- Infix operators:
+  - `<` (less than)
+  - `<=` (less than or equal to)
+  - `>` (greater than)
+  - `>=` (greater than or equal to)
+- **Type Constraints**: Both operands must be numbers. Comparing non-number types triggers a runtime error.
+
+### 3.4 Equality Operators (Universal)
+- Infix operators:
+  - `==` (equal to)
+  - `!=` (not equal to)
+- **Universal Evaluation**: Can compare any two values of any type without throwing a runtime error.
+- Operands of different types are considered **not equal** (e.g., `314 == "pi"` evaluates to `false`).
+- `nil` is only equal to `nil`.
