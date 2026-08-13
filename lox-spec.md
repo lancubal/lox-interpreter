@@ -175,3 +175,60 @@ Standard Lox explicitly **excludes** the following operator categories:
 ### 7.4 First-Class Functions & Lexical Closures
 - **First-Class Values**: Functions in Lox are first-class objects—they can be bound to variables, stored in data structures, passed as parameters to other functions, and returned from function calls.
 - **Lexical Closures**: Local functions close over variables in their surrounding enclosing scope chains. A function retains access to outer variables even after the enclosing outer function has finished executing and returned (`returnFunction()`).
+
+---
+
+## 8. Classes, Instances & Inheritance
+
+### 8.1 Class Declarations & First-Class Classes
+- Syntax:
+  ```lox
+  class Breakfast {
+    cook() {
+      print "Eggs a-fryin'!";
+    }
+    serve(who) {
+      print "Enjoy your breakfast, " + who + ".";
+    }
+  }
+  ```
+- **Method Declarations**: The body of a class contains its methods, structured like function declarations but without the `fun` keyword.
+- **First-Class Values**: Executing a class declaration creates a runtime **Class Object** and binds it to a variable named after the class. Classes are first-class values (can be stored in variables, passed to functions, etc.).
+
+### 8.2 Instance Construction (Classes as Factories)
+- **No `new` Keyword**: Lox does not use a `new` keyword. Instead, the class object itself acts as a **factory function**.
+- Calling a class like a function (`var breakfast = Breakfast();`) constructs and returns a new instance of that class.
+
+### 8.3 Dynamic Fields & Properties
+- Properties can be dynamically defined, assigned, and read on instances at runtime using dot syntax:
+  - **Set Property**: `instance.propertyName = value;`
+  - **Get Property**: `instance.propertyName`
+- Reading a non-existent property on an instance produces a runtime error unless a method with that name exists on the class.
+
+### 8.4 `this` Keyword
+- Inside a method body, the `this` keyword refers to the specific instance upon which the method was invoked.
+- `this` can be used to access and mutate instance fields (`this.meat = meat;`).
+- Attempting to use `this` outside of a class method produces a compile/runtime error.
+
+### 8.5 Constructors & Initializers (`init()`)
+- Defining a method named `init()` inside a class marks it as the class constructor/initializer:
+  ```lox
+  class Breakfast {
+    init(meat, bread) {
+      this.meat = meat;
+      this.bread = bread;
+    }
+  }
+  ```
+- When a class is called as a factory function (`Breakfast("bacon", "toast")`), any arguments passed are automatically forwarded to `init(...)`.
+- `init()` automatically returns `this` when invoked during object construction.
+
+### 8.6 Single Inheritance (`<`)
+- Syntax: `class Subclass < Superclass { ... }`
+- **Subclassing**: `Subclass` inherits all methods defined in `Superclass`. Lox supports **single inheritance** only.
+- Overriding: A subclass can define a method with the same name as a superclass method to override its behavior.
+
+### 8.7 `super` Keyword
+- Syntax: `super.methodName(args...)`
+- Used inside a subclass method to invoke an inherited method implementation on the `Superclass`, bypassing any overriding method defined in the subclass itself.
+- Common use case: Calling `super.init(...)` inside a subclass constructor to initialize superclass state.
