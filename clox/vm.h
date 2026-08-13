@@ -45,7 +45,19 @@ extern VM vm;
 void initVM();
 void freeVM();
 InterpretResult interpret(const char *source);
-void push(Value value);
-Value pop();
+void growStack();
+
+static inline void push(Value value) {
+  if ((int)(vm.stackTop - vm.stack) >= vm.stackCapacity) {
+    growStack();
+  }
+  *vm.stackTop = value;
+  vm.stackTop++;
+}
+
+static inline Value pop() {
+  vm.stackTop--;
+  return *vm.stackTop;
+}
 
 #endif

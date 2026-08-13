@@ -286,33 +286,22 @@ void freeVM() {
   freeCustomHeap();
 }
 
-void push(Value value) {
-  int currentCount = (int)(vm.stackTop - vm.stack);
-  if (currentCount >= vm.stackCapacity) {
-    int oldCapacity = vm.stackCapacity;
-    vm.stackCapacity = GROW_CAPACITY(oldCapacity);
+void growStack() {
+  int oldCapacity = vm.stackCapacity;
+  vm.stackCapacity = GROW_CAPACITY(oldCapacity);
 
-    int stackTopOffset = (int)(vm.stackTop - vm.stack);
-    int frameSlotOffsets[FRAMES_MAX];
-    for (int i = 0; i < vm.frameCount; i++) {
-      frameSlotOffsets[i] = (int)(vm.frames[i].slots - vm.stack);
-    }
-
-    vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
-
-    vm.stackTop = vm.stack + stackTopOffset;
-    for (int i = 0; i < vm.frameCount; i++) {
-      vm.frames[i].slots = vm.stack + frameSlotOffsets[i];
-    }
+  int stackTopOffset = (int)(vm.stackTop - vm.stack);
+  int frameSlotOffsets[FRAMES_MAX];
+  for (int i = 0; i < vm.frameCount; i++) {
+    frameSlotOffsets[i] = (int)(vm.frames[i].slots - vm.stack);
   }
 
-  *vm.stackTop = value;
-  vm.stackTop++;
-}
+  vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
 
-Value pop() {
-  vm.stackTop--;
-  return *vm.stackTop;
+  vm.stackTop = vm.stack + stackTopOffset;
+  for (int i = 0; i < vm.frameCount; i++) {
+    vm.frames[i].slots = vm.stack + frameSlotOffsets[i];
+  }
 }
 
 static Value peek(int distance) { return vm.stackTop[-1 - distance]; }
