@@ -232,3 +232,16 @@ Standard Lox explicitly **excludes** the following operator categories:
 - Syntax: `super.methodName(args...)`
 - Used inside a subclass method to invoke an inherited method implementation on the `Superclass`, bypassing any overriding method defined in the subclass itself.
 - Common use case: Calling `super.init(...)` inside a subclass constructor to initialize superclass state.
+
+---
+
+## 9. Standard Library & Built-in Functions
+
+### 9.1 Minimalist Design
+- Standard Lox intentionally keeps the standard library minimal.
+- Basic input/output is provided via the built-in `print` statement.
+
+### 9.2 Built-in `clock()` Function
+- **Signature**: `clock()` (Arity: `0`).
+- **Behavior**: Returns the elapsed time in seconds (as a number / double) since the interpreter started or system unix epoch.
+- **Primary Use Case**: Benchmarking execution time and measuring code performance.
