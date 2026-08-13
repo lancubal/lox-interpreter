@@ -404,9 +404,47 @@ static bool callValue(Value callee, int argCount) {
   return false;
 }
 
+static ObjClass *findHighestClassWithMethod(ObjClass *klass, ObjString *name, Value *outMethod) {
+  ObjClass *highestClass = NULL;
+  Value highestMethod = NIL_VAL;
+
+  for (ObjClass *curr = klass; curr != NULL; curr = curr->superclass) {
+    Value value;
+    if (tableGet(&curr->methods, OBJ_VAL(name), &value)) {
+      highestClass = curr;
+      highestMethod = value;
+    }
+  }
+
+  if (highestClass != NULL && outMethod != NULL) {
+    *outMethod = highestMethod;
+  }
+  return highestClass;
+}
+
+static bool findInnerMethod(ObjClass *enclosingClass, ObjClass *actualClass, ObjString *name, Value *outMethod) {
+  ObjClass *chain[256];
+  int count = 0;
+
+  for (ObjClass *curr = actualClass; curr != NULL && curr != enclosingClass; curr = curr->superclass) {
+    chain[count++] = curr;
+  }
+
+  for (int i = count - 1; i >= 0; i--) {
+    Value value;
+    if (tableGet(&chain[i]->methods, OBJ_VAL(name), &value)) {
+      if (outMethod != NULL) *outMethod = value;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount) {
   Value method;
-  if (!tableGet(&klass->methods, OBJ_VAL(name), &method)) {
+  ObjClass *targetClass = findHighestClassWithMethod(klass, name, &method);
+  if (targetClass == NULL) {
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
@@ -434,7 +472,8 @@ static bool invoke(ObjString *name, int argCount) {
 
 static bool bindMethod(ObjClass *klass, ObjString *name) {
   Value method;
-  if (!tableGet(&klass->methods, OBJ_VAL(name), &method)) {
+  ObjClass *targetClass = findHighestClassWithMethod(klass, name, &method);
+  if (targetClass == NULL) {
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
@@ -481,6 +520,11 @@ static void defineMethod(ObjString *name) {
   Value method = peek(0);
   ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, OBJ_VAL(name), method);
+  if (IS_FUNCTION(method)) {
+    AS_FUNCTION(method)->enclosingClass = klass;
+  } else if (IS_CLOSURE(method)) {
+    AS_CLOSURE(method)->function->enclosingClass = klass;
+  }
   if (name->length == 4 && memcmp(name->chars, "init", 4) == 0) {
     klass->initializer = method;
   }
@@ -784,6 +828,38 @@ static InterpretResult run() {
       ip = frame->ip;
       break;
     }
+    case OP_INNER_INVOKE: {
+      int argCount = READ_BYTE();
+      Value receiver = peek(argCount);
+
+      if (!IS_INSTANCE(receiver)) {
+        frame->ip = ip;
+        runtimeError("Only instances have methods.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      ObjInstance *instance = AS_INSTANCE(receiver);
+      ObjFunction *currFunc = frame->function;
+      ObjString *methodName = currFunc != NULL ? currFunc->name : NULL;
+      ObjClass *enclosingClass = currFunc != NULL ? currFunc->enclosingClass : NULL;
+
+      Value innerMethod;
+      if (enclosingClass != NULL && methodName != NULL &&
+          findInnerMethod(enclosingClass, instance->klass, methodName, &innerMethod)) {
+        frame->ip = ip;
+        if (!callValue(innerMethod, argCount)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &vm.frames[vm.frameCount - 1];
+        ip = frame->ip;
+      } else {
+        for (int i = 0; i < argCount + 1; i++) {
+          pop();
+        }
+        push(NIL_VAL);
+      }
+      break;
+    }
     case OP_CLOSURE: {
       ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
       ObjClosure *closure = newClosure(function);
@@ -817,8 +893,7 @@ static InterpretResult run() {
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
-      subclass->initializer = AS_CLASS(superclass)->initializer;
+      subclass->superclass = AS_CLASS(superclass);
       pop(); // Subclass
       break;
     }

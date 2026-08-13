@@ -43,13 +43,17 @@ struct Obj {
   struct Obj *next;
 };
 
-typedef struct {
+typedef struct ObjClass ObjClass;
+typedef struct ObjFunction ObjFunction;
+
+struct ObjFunction {
   Obj obj;
   int arity;
   int upvalueCount;
   Chunk chunk;
   ObjString *name;
-} ObjFunction;
+  ObjClass *enclosingClass;
+};
 
 typedef bool (*NativeFn)(int argCount, Value *args, Value *result);
 
@@ -81,12 +85,13 @@ typedef struct {
   int upvalueCount;
 } ObjClosure;
 
-typedef struct {
+struct ObjClass {
   Obj obj;
   ObjString *name;
+  ObjClass *superclass;
   Table methods;
   Value initializer;
-} ObjClass;
+};
 
 typedef struct {
   Obj obj;

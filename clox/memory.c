@@ -125,6 +125,7 @@ static void blackenObject(Obj *object) {
   case OBJ_CLASS: {
     ObjClass *klass = (ObjClass *)object;
     markObject((Obj *)klass->name);
+    markObject((Obj *)klass->superclass);
     markTable(&klass->methods);
     markValue(klass->initializer);
     break;
@@ -146,6 +147,7 @@ static void blackenObject(Obj *object) {
   case OBJ_FUNCTION: {
     ObjFunction *function = (ObjFunction *)object;
     markObject((Obj *)function->name);
+    markObject((Obj *)function->enclosingClass);
     markArray(&function->chunk.constants);
     break;
   }

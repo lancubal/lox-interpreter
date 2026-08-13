@@ -636,7 +636,23 @@ static void this_(bool canAssign) {
     error("Can't use 'this' outside of a class.");
     return;
   }
+
   variable(false);
+}
+
+static void inner_(bool canAssign) {
+  if (currentClass == NULL) {
+    error("Can't use 'inner' outside of a class.");
+    return;
+  }
+
+  uint8_t argCount = 0;
+  if (match(TOKEN_LEFT_PAREN)) {
+    argCount = argumentList();
+  }
+
+  namedVariable(syntheticToken("this"), false);
+  emitBytes(OP_INNER_INVOKE, argCount);
 }
 
 ParseRule rules[] = {
@@ -669,6 +685,7 @@ ParseRule rules[] = {
     [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
     [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
     [TOKEN_IF] = {NULL, NULL, PREC_NONE},
+    [TOKEN_INNER] = {inner_, NULL, PREC_NONE},
     [TOKEN_NIL] = {literal, NULL, PREC_NONE},
     [TOKEN_OR] = {NULL, or_, PREC_OR},
     [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},

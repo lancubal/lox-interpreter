@@ -3233,5 +3233,104 @@ Since clox is about not just implementing Lox, but doing so with good
 performance, this time around try to solve the challenge with an eye
 towards efficiency.
 
+#### Answer:
+
+##### 1. BETA Inheritance Semantics:
+In BETA, method overriding operates **Top-Down** instead of Bottom-Up:
+- **Top-Down Dispatch**: Calling `instance.method()` resolves to the **highest ancestor** in the inheritance hierarchy that defines `method()`.
+- **`inner()` Keyword Dispatch**: When a method calls `inner(...)` (or `inner()`), the VM looks for a method with the same name in the nearest subclass along the inheritance chain between the class containing `inner` and `this.klass`. If no subclass defines the method down to `this.klass`, `inner()` is a no-op that evaluates to `nil`.
+
+##### 2. Implementation Strategy in `clox`:
+
+1. **Class Hierarchy Representation (`clox/object.h`)**:
+   - `ObjClass` stores a direct `ObjClass *superclass` pointer instead of doing copy-down inheritance (`tableAddAll`).
+   - `ObjFunction` stores `ObjClass *enclosingClass`, recording the class where the method was defined.
+
+2. **Top-Down Resolution (`findHighestClassWithMethod` in `clox/vm.c`)**:
+   ```c
+   static ObjClass *findHighestClassWithMethod(ObjClass *klass, ObjString *name, Value *outMethod) {
+     ObjClass *highestClass = NULL;
+     Value highestMethod = NIL_VAL;
+
+     for (ObjClass *curr = klass; curr != NULL; curr = curr->superclass) {
+       Value value;
+       if (tableGet(&curr->methods, OBJ_VAL(name), &value)) {
+         highestClass = curr;
+         highestMethod = value;
+       }
+     }
+     if (highestClass != NULL && outMethod != NULL) *outMethod = highestMethod;
+     return highestClass;
+   }
+   ```
+
+3. **Subclass Search for `inner()` (`findInnerMethod` in `clox/vm.c`)**:
+   ```c
+   static bool findInnerMethod(ObjClass *enclosingClass, ObjClass *actualClass, ObjString *name, Value *outMethod) {
+     ObjClass *chain[256];
+     int count = 0;
+
+     for (ObjClass *curr = actualClass; curr != NULL && curr != enclosingClass; curr = curr->superclass) {
+       chain[count++] = curr;
+     }
+
+     for (int i = count - 1; i >= 0; i--) {
+       Value value;
+       if (tableGet(&chain[i]->methods, OBJ_VAL(name), &value)) {
+         if (outMethod != NULL) *outMethod = value;
+         return true;
+       }
+     }
+     return false;
+   }
+   ```
+
+4. **New Opcode `OP_INNER_INVOKE` in `clox/vm.c`**:
+   ```c
+   case OP_INNER_INVOKE: {
+     int argCount = READ_BYTE();
+     Value receiver = peek(argCount);
+     ObjInstance *instance = AS_INSTANCE(receiver);
+     ObjFunction *currFunc = frame->function;
+
+     Value innerMethod;
+     if (currFunc->enclosingClass != NULL &&
+         findInnerMethod(currFunc->enclosingClass, instance->klass, currFunc->name, &innerMethod)) {
+       if (!callValue(innerMethod, argCount)) return INTERPRET_RUNTIME_ERROR;
+       frame = &vm.frames[vm.frameCount - 1];
+       ip = frame->ip;
+     } else {
+       for (int i = 0; i < argCount + 1; i++) pop();
+       push(NIL_VAL);
+     }
+     break;
+   }
+   ```
+
+##### 3. Verification (`programs/clox/test_beta_inheritance.lox`):
+```lox
+class Doughnut {
+  cook() {
+    print "Fry until golden brown.";
+    inner();
+    print "Place in a nice box.";
+  }
+}
+
+class BostonCream < Doughnut {
+  cook() {
+    print "Pipe full of custard and coat with chocolate.";
+  }
+}
+
+BostonCream().cook();
+```
+Output:
+```
+Fry until golden brown.
+Pipe full of custard and coat with chocolate.
+Place in a nice box.
+```
+
 
 
