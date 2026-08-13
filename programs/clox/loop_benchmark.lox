@@ -1,0 +1,16 @@
+// Loop & Arithmetic VM Dispatch Benchmark (Chapter 30 Challenge 1)
+
+fun benchmark() {
+  var sum = 0;
+  var start = clock();
+  for (var i = 0; i < 10000000; i = i + 1) {
+    sum = sum + i;
+  }
+  var elapsed = clock() - start;
+  print "10,000,000 loop iterations elapsed:";
+  print elapsed;
+  print "Sum:";
+  print sum;
+}
+
+benchmark();

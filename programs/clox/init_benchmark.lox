@@ -1,0 +1,22 @@
+// Benchmark class instantiation / init() method lookup (Chapter 28 Challenge 1)
+
+class Point {
+  init(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+fun benchmark() {
+  var start = clock();
+
+  for (var i = 0; i < 1000000; i = i + 1) {
+    var p = Point(i, i + 1);
+  }
+
+  var elapsed = clock() - start;
+  print "Elapsed time for 1,000,000 instantiations:";
+  print elapsed;
+}
+
+benchmark();

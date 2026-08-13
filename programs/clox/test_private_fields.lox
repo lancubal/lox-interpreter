@@ -1,0 +1,35 @@
+// Test private field name mangling across inheritance hierarchy (Chapter 29 Challenge 1)
+
+class Base {
+  init(id) {
+    this._id = id;
+  }
+
+  getBaseId() {
+    return this._id;
+  }
+}
+
+class Derived < Base {
+  init(baseId, derivedId) {
+    super.init(baseId);
+    this._id = derivedId;
+  }
+
+  getDerivedId() {
+    return this._id;
+  }
+}
+
+var obj = Derived(100, "Derived Secret");
+
+print "Base ID (expected 100):";
+print obj.getBaseId();
+
+print "Derived ID (expected Derived Secret):";
+print obj.getDerivedId();
+
+// Verify public fields still work without mangling
+obj.publicField = "Shared Public Value";
+print "Public field:";
+print obj.publicField;

@@ -1,0 +1,21 @@
+// Small String Allocation & Concatenation Benchmark (Chapter 30 Challenge 2)
+
+fun benchmark() {
+  var start = clock();
+  var count = 0;
+  for (var i = 0; i < 2000000; i = i + 1) {
+    var a = "x";
+    var b = "y";
+    var c = a + b; // Creates "xy" inline without heap allocation!
+    if (c == "xy") {
+      count = count + 1;
+    }
+  }
+  var elapsed = clock() - start;
+  print "2,000,000 small string operations elapsed:";
+  print elapsed;
+  print "Matches:";
+  print count;
+}
+
+benchmark();

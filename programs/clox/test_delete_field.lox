@@ -1,0 +1,21 @@
+// Test for field deletion in clox (Chapter 27 Challenge 3)
+
+class Car {}
+
+var car = Car();
+car.color = "red";
+car.speed = 120;
+
+print "Initial state:";
+print hasField(car, "color"); // true
+print getField(car, "color"); // red
+
+print "Deleting color:";
+print deleteField(car, "color"); // true
+
+print "After deletion:";
+print hasField(car, "color"); // false
+print getField(car, "color"); // nil
+
+print "Deleting non-existent field:";
+print deleteField(car, "color"); // false

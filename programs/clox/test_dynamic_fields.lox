@@ -1,0 +1,17 @@
+// Test dynamic/computed field access in Lox (Chapter 27 Challenge 2)
+
+class Person {}
+
+var p = Person();
+
+// Imperatively build string field names and set values
+for (var i = 1; i <= 3; i = i + 1) {
+  setField(p, "attr_" + str(i), i * 100);
+}
+
+// Imperatively read back computed fields
+for (var i = 1; i <= 3; i = i + 1) {
+  var name = "attr_" + str(i);
+  print name + ":";
+  print getField(p, name);
+}
