@@ -107,11 +107,14 @@ cd clox
 make clean
 ```
 
----
-
 ## Scala 3 Implementation (slox)
 
 An object-functional, purely immutable Lox interpreter written in Scala 3 following the **TADP (UTN FRBA)** paradigm.
+
+> [!NOTE]
+> For a deep dive into how `slox` combines the Object-Oriented and Functional paradigms with code examples, see the architectural design report: **[`slox-design.md`](slox-design.md)**.
+> For the complete language specification reference, see **[`lox-spec.md`](lox-spec.md)**.
+> For the dedicated module README, see **[`slox/README.md`](slox/README.md)**.
 
 ### Key Features (slox)
 - **Pure Immutability**: No shared mutable variables (`var` prohibited in AST/Interpreter state); environment scoping and state transitions use copy-on-write state chains.
