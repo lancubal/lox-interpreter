@@ -99,3 +99,25 @@ Standard Lox explicitly **excludes** the following operator categories:
 - No shift operators (`<<`, `>>`, `>>>`).
 - No modulo operator (`%`).
 - No conditional ternary operator (`?:`).
+
+---
+
+## 4. Statements & Block Scoping
+
+### 4.1 Statement vs. Expression Distinction
+- **Expression**: Evaluates to produce a **value** (e.g. `1 + 2`, `a == b`).
+- **Statement**: Executes to produce a **side-effect** (e.g. printing, declaring variables, altering control flow, defining blocks). Statements do not yield a value to surrounding code.
+
+### 4.2 Print Statement (`print`)
+- Syntax: `print expression;`
+- Evaluates the single expression and outputs its string representation to standard output followed by a newline.
+
+### 4.3 Expression Statement
+- Syntax: `expression;`
+- An expression followed by a semicolon `;` promotes the expression to a statement.
+- The expression is evaluated for its side-effect (such as a function call or variable assignment) and the resulting value is discarded.
+
+### 4.4 Block Statement & Lexical Scoping
+- Syntax: `{ statement1; statement2; ... }`
+- Groups zero or more statements inside curly braces `{ ... }` into a single compound statement wherever a statement is expected.
+- **Scope Effect**: A block creates a new **nested local lexical scope frame**. Variables declared inside the block exist only within that block and are discarded when execution leaves the block. Inner scopes can access and shadow variables from enclosing outer scopes.
