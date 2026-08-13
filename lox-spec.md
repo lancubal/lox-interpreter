@@ -121,3 +121,34 @@ Standard Lox explicitly **excludes** the following operator categories:
 - Syntax: `{ statement1; statement2; ... }`
 - Groups zero or more statements inside curly braces `{ ... }` into a single compound statement wherever a statement is expected.
 - **Scope Effect**: A block creates a new **nested local lexical scope frame**. Variables declared inside the block exist only within that block and are discarded when execution leaves the block. Inner scopes can access and shadow variables from enclosing outer scopes.
+
+---
+
+## 5. Variables & Binding
+
+### 5.1 Variable Declarations (`var`)
+- Syntax: `var identifier = initializer;` or `var identifier;`
+- **Default Initial Value**: If the initializer expression is omitted, the variable is automatically assigned the value `nil`.
+
+### 5.2 Access & Assignment
+- **Access**: Reference variable by identifier (`var breakfast = "bagels"; print breakfast;`). Referring to an undeclared variable produces a runtime error.
+- **Assignment**: Update variable binding (`breakfast = "beignets";`). Assigning to an undeclared variable produces a runtime error.
+
+---
+
+## 6. Control Flow
+
+### 6.1 Conditional Execution (`if` / `else`)
+- Syntax: `if (condition) thenBranch else elseBranch`
+- Evaluates the `condition` expression. If truthy, executes `thenBranch`. If falsy and an optional `elseBranch` exists, executes `elseBranch`.
+
+### 6.2 Loops (`while`)
+- Syntax: `while (condition) body`
+- Repeatedly evaluates `condition`. As long as `condition` is truthy, executes `body`.
+
+### 6.3 Loops (`for`)
+- Syntax: `for (initializer; condition; increment) body`
+- Syntactic sugar for a `while` loop wrapped in an enclosing block scope:
+  - `initializer`: Executed once before the loop (can be a `var` declaration, expression statement, or empty `;`).
+  - `condition`: Evaluated before each iteration (defaults to `true` if omitted).
+  - `increment`: Executed at the end of each iteration step after `body`.
